@@ -57,12 +57,11 @@ app = FastAPI(
     lifespan=vong_doi_app,
 )
 
-# CORS – cho phép frontend truy cập
-cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
+# CORS – cho phép frontend truy cập từ mọi domain
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=cors_origins,
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
