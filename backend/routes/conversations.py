@@ -2,15 +2,15 @@
 routes/conversations.py – API cho lịch sử hội thoại.
 """
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 from services import chat_service
 
 router = APIRouter(prefix="/api/conversations", tags=["conversations"])
 
 
 @router.get("")
-async def lay_danh_sach():
-    return {"conversations": await chat_service.lay_danh_sach_hoi_thoai("default")}
+async def lay_danh_sach(user_id: str = Query(default="guest")):
+    return {"conversations": await chat_service.lay_danh_sach_hoi_thoai(user_id)}
 
 
 @router.delete("/{session_id}")

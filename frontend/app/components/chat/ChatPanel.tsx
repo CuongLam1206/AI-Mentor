@@ -144,6 +144,7 @@ export default function ChatPanel({ onDong, fullScreen, onToggleFullScreen, user
 
     const { trangThai, ketNoi, guiTinNhan, guiGreeting, ngatKetNoi } = useChatWebSocket({
         sessionId,
+        userId,
         khiBatDauStream,
         khiNhanDoanStream,
         khiKetThucStream,

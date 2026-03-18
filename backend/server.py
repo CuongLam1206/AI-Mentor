@@ -1217,15 +1217,15 @@ async def tao_quiz(request: Request):
 
 
 @app.websocket("/ws/chat/{session_id}")
-async def websocket_chat(websocket: WebSocket, session_id: str):
+async def websocket_chat(websocket: WebSocket, session_id: str, user_id: str = "guest"):
     """Endpoint WebSocket cho chat real-time."""
     await websocket.accept()
-    print(f"🔗 WebSocket kết nối: session={session_id}")
+    print(f"🔗 WebSocket kết nối: session={session_id}, user={user_id}")
 
-    # Kiểm tra hoặc tạo hội thoại
+    # Kiểm tra hoặc tạo hội thoại với user_id đúng
     hoi_thoai = await chat_service.lay_hoi_thoai(session_id)
     if not hoi_thoai:
-        hoi_thoai = await chat_service.tao_hoi_thoai("default", session_id)
+        hoi_thoai = await chat_service.tao_hoi_thoai(user_id, session_id)
 
     try:
         while True:
@@ -1345,9 +1345,9 @@ async def cap_nhat_profile(user_id: str, body: dict):
 
 
 @app.get("/api/conversations")
-async def lay_danh_sach():
-    """Lấy danh sách hội thoại."""
-    danh_sach = await chat_service.lay_danh_sach_hoi_thoai()
+async def lay_danh_sach(user_id: str = "guest"):
+    """Lấy danh sách hội thoại theo user_id."""
+    danh_sach = await chat_service.lay_danh_sach_hoi_thoai(user_id)
     return {"conversations": danh_sach}
 
 

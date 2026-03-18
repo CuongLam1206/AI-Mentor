@@ -19,6 +19,7 @@ export interface PageContext {
 
 interface ThamSoWebSocket {
     sessionId: string;
+    userId?: string;
     khiBatDauStream: (messageId: string) => void;
     khiNhanDoanStream: (messageId: string, chunk: string) => void;
     khiKetThucStream: (messageId: string, fullContent: string) => void;
@@ -27,6 +28,7 @@ interface ThamSoWebSocket {
 
 export function useChatWebSocket({
     sessionId,
+    userId = "guest",
     khiBatDauStream,
     khiNhanDoanStream,
     khiKetThucStream,
@@ -43,7 +45,7 @@ export function useChatWebSocket({
 
         setTrangThai("dang_ket_noi");
 
-        const ws = new WebSocket(`${WS_URL}/ws/chat/${sessionId}`);
+        const ws = new WebSocket(`${WS_URL}/ws/chat/${sessionId}?user_id=${encodeURIComponent(userId)}`);
 
         ws.onopen = () => {
             setTrangThai("da_ket_noi");
