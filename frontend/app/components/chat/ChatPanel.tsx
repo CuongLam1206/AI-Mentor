@@ -29,6 +29,14 @@ interface Props {
 }
 
 export default function ChatPanel({ onDong, fullScreen, onToggleFullScreen }: Props) {
+    // Lấy username từ localStorage dùng làm user_id
+    const [userId] = useState<string>(() => {
+        if (typeof window === "undefined") return "default";
+        try {
+            const auth = JSON.parse(localStorage.getItem("learnify_auth") || "{}");
+            return auth.username || "default";
+        } catch { return "default"; }
+    });
     const [sessionId, setSessionId] = useState(() => taoSessionId());
     const [danhSachTinNhan, setDanhSachTinNhan] = useState<TinNhan[]>([]);
     const [dangXuLy, setDangXuLy] = useState(false);
@@ -69,7 +77,7 @@ export default function ChatPanel({ onDong, fullScreen, onToggleFullScreen }: Pr
         let schedule: { hour: number; minute: number; days: number[] } | null = null;
 
         // Load schedule once
-        fetch(`${API_URL}/api/study-schedule?user_id=default`)
+        fetch(`${API_URL}/api/study-schedule?user_id=${userId}`)
             .then(r => r.json())
             .then(d => { if (d.schedule) schedule = d.schedule; })
             .catch(() => {});
@@ -180,16 +188,16 @@ export default function ChatPanel({ onDong, fullScreen, onToggleFullScreen }: Pr
 
     // Phase 2: Fetch greeting + nudge + streak on mount
     useEffect(() => {
-        fetch(`${API_URL}/api/greeting?user_id=default`)
+        fetch(`${API_URL}/api/greeting?user_id=${userId}`)
             .then(r => r.json())
             .then(d => { if (d.greeting) setGreeting(d.greeting); })
             .catch(() => {});
-        fetch(`${API_URL}/api/nudge?user_id=default`)
+        fetch(`${API_URL}/api/nudge?user_id=${userId}`)
             .then(r => r.json())
             .then(d => { if (d.nudge) setNudge(d.nudge); })
             .catch(() => {});
         // Phase 3: streak
-        fetch(`${API_URL}/api/streak?user_id=default`)
+        fetch(`${API_URL}/api/streak?user_id=${userId}`)
             .then(r => r.json())
             .then(d => { if (d.streak) setStreak(d.streak); })
             .catch(() => {});
@@ -220,7 +228,7 @@ export default function ChatPanel({ onDong, fullScreen, onToggleFullScreen }: Pr
 
     const taiLichSu = async () => {
         try {
-            const res = await fetch(`${API_URL}/api/conversations`);
+            const res = await fetch(`${API_URL}/api/conversations?user_id=${userId}`);
             if (res.ok) {
                 const data = await res.json();
                 setLichSuHoiThoai(data.conversations || []);
@@ -628,7 +636,7 @@ export default function ChatPanel({ onDong, fullScreen, onToggleFullScreen }: Pr
                                 {/* Notes Panel overlay */}
                                 {showNotes ? (
                                     <NotesPanel
-                                        userId="default"
+                                        userId={userId}
                                         onClose={() => setShowNotes(false)}
                                         onGoToChat={(sid) => { setShowNotes(false); chonHoiThoai(sid); }}
                                     />
@@ -640,7 +648,7 @@ export default function ChatPanel({ onDong, fullScreen, onToggleFullScreen }: Pr
                                         onFollowUpChip={xuLyGuiTinNhan}
                                         onOpenQuiz={(topic) => { setQuizContext({ topic }); setShowQuiz(true); }}
                                         onOpenNotes={() => setShowNotes(true)}
-                                        userId="default"
+                                        userId={userId}
                                         sessionId={sessionId}
                                     />
                                 )}
@@ -672,7 +680,7 @@ export default function ChatPanel({ onDong, fullScreen, onToggleFullScreen }: Pr
                 <QuizModal
                     goalTitle={quizContext.goalTitle}
                     topic={quizContext.topic}
-                    userId="default"
+                    userId={userId}
                     onClose={() => setShowQuiz(false)}
                 />
             )}
