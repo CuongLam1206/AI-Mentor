@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./components/chat/chat.css";
+import SplitLayout from "./components/chat/SplitLayout";
+import AuthGate from "./components/AuthGate";
 
 export const metadata: Metadata = {
     title: "Learnify – AI Tutor cá nhân hóa",
@@ -17,7 +20,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     rel="stylesheet"
                 />
             </head>
-            <body suppressHydrationWarning>{children}</body>
+            <body suppressHydrationWarning>
+                <AuthGate>
+                    <SplitLayout>{children}</SplitLayout>
+                </AuthGate>
+            </body>
         </html>
     );
 }
