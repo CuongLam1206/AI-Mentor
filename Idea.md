@@ -1,0 +1,4 @@
+Ý tưởng của tôi là , trên giao diện của learnify bản user, thêm 1 cái phần chat ở bên phải giao diện như Copilot trong visual Studio code, Mở ra gập vào dc, user sẽ chat trong đấy.
+Vấn đề cần nghiên cứu là cả về UX nên làm như thế nào, thế giới nó đang làm như thế nào , từ việc lên mục tiêu là nó có thể làm gì, đến sau đấy là làm như thế nào.
+Tôi muốn đưa ra mục tiêu như sau, nghiên cứu thực tiễn xem làm dc ko, ko thì cứ đề xuất sửa: là nó chạy dc như 1 gia sư cá nhân cho học viên, nó hiểu dc context là học viên đang ở trạng thái ntn, đang có các mục tiêu gì, trong phạm vi mong muốn cụ thể ntn, từ đó nó có thể đề xuất lộ trình học cho học viên, và thường xuyên update tiến độ để nắm dc context.
+Tất nhiên bên cạnh đó nó luôn trả lời dc các câu hỏi cụ thể.

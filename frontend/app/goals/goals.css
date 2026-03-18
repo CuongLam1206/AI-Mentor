@@ -1,0 +1,427 @@
+/**
+ * Learnify Goals Page – Stylesheet
+ * Tông pastel tím/lavender matching chat
+ */
+
+.goals-page {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #E8E4F7 0%, #EDE9F8 30%, #F2EFF9 50%, #E9EAF8 80%, #E4E7F6 100%);
+    font-family: 'Inter', -apple-system, sans-serif;
+}
+
+/* ===== HEADER ===== */
+.goals-header {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(24px);
+    border-bottom: 1px solid rgba(124, 111, 224, 0.08);
+    padding: 12px 32px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.goals-header__content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    max-width: 1100px;
+    margin: 0 auto;
+}
+
+.goals-header__logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.goals-header__logo-text {
+    font-size: 20px;
+    font-weight: 700;
+    background: linear-gradient(135deg, #7C6FE0, #6B5DD3);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-decoration: none;
+}
+
+.goals-header__nav {
+    display: flex;
+    gap: 28px;
+}
+
+.goals-nav-link {
+    font-size: 14px;
+    font-weight: 500;
+    color: #6B6A7D;
+    text-decoration: none;
+    padding: 6px 0;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+}
+
+.goals-nav-link:hover {
+    color: #7C6FE0;
+}
+
+.goals-nav-link--active {
+    color: #7C6FE0;
+    border-bottom-color: #7C6FE0;
+    font-weight: 600;
+}
+
+.goals-header__avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #7C6FE0, #6B5DD3);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+/* ===== CONTENT ===== */
+.goals-content {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 32px 24px 120px;
+}
+
+/* ===== LOADING ===== */
+.goals-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 60vh;
+    gap: 16px;
+    color: #6B6A7D;
+}
+
+.goals-loading__spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid rgba(124, 111, 224, 0.15);
+    border-top-color: #7C6FE0;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ===== EMPTY STATE ===== */
+.goals-empty {
+    text-align: center;
+    padding: 80px 24px;
+}
+
+.goals-empty__icon {
+    font-size: 64px;
+    margin-bottom: 16px;
+}
+
+.goals-empty h2 {
+    font-size: 24px;
+    font-weight: 700;
+    color: #2D2B3D;
+    margin: 0 0 12px;
+}
+
+.goals-empty p {
+    font-size: 15px;
+    color: #6B6A7D;
+    max-width: 400px;
+    margin: 0 auto 8px;
+    line-height: 1.6;
+}
+
+.goals-empty__hint {
+    font-style: italic;
+    color: #7C6FE0 !important;
+    font-weight: 500;
+}
+
+/* ===== GOAL TABS ===== */
+.goal-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+}
+
+.goal-tab {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border-radius: 14px;
+    border: 1px solid rgba(124, 111, 224, 0.12);
+    background: rgba(255, 255, 255, 0.5);
+    backdrop-filter: blur(12px);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 13px;
+    font-family: inherit;
+    white-space: nowrap;
+}
+
+.goal-tab:hover {
+    background: rgba(255, 255, 255, 0.75);
+    border-color: rgba(124, 111, 224, 0.25);
+}
+
+.goal-tab--active {
+    background: rgba(255, 255, 255, 0.85);
+    border-color: #7C6FE0;
+    box-shadow: 0 2px 12px rgba(124, 111, 224, 0.15);
+}
+
+.goal-tab__emoji {
+    font-size: 18px;
+}
+
+.goal-tab__text {
+    font-weight: 500;
+    color: #2D2B3D;
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.goal-tab--active .goal-tab__text {
+    font-weight: 600;
+    color: #7C6FE0;
+}
+
+.goal-tab__pct {
+    font-size: 12px;
+    font-weight: 700;
+    color: #7C6FE0;
+    background: rgba(124, 111, 224, 0.08);
+    padding: 2px 8px;
+    border-radius: 10px;
+}
+
+/* ===== GOAL SUMMARY CARD ===== */
+.goal-summary {
+    background: rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(24px);
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    padding: 28px 32px;
+    margin-bottom: 32px;
+    box-shadow: 0 4px 20px rgba(108, 93, 211, 0.08);
+}
+
+.goal-summary__main {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+}
+
+.goal-summary__info {
+    flex: 1;
+}
+
+.goal-summary__title {
+    font-size: 26px;
+    font-weight: 700;
+    color: #2D2B3D;
+    margin: 0 0 14px;
+}
+
+.goal-summary__stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.goal-stat {
+    font-size: 13px;
+    font-weight: 500;
+    color: #6B6A7D;
+    background: rgba(124, 111, 224, 0.06);
+    padding: 6px 14px;
+    border-radius: 20px;
+}
+
+/* Progress Ring */
+.goal-summary__progress-ring {
+    position: relative;
+    width: 110px;
+    height: 110px;
+    flex-shrink: 0;
+}
+
+.goal-summary__progress-ring svg {
+    width: 110px;
+    height: 110px;
+    transition: stroke-dashoffset 0.8s ease;
+}
+
+.goal-summary__progress-text {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 26px;
+    font-weight: 700;
+    color: #7C6FE0;
+}
+
+/* ===== MILESTONE TIMELINE ===== */
+.milestone-timeline__title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #2D2B3D;
+    margin: 0 0 20px;
+}
+
+.milestone-card {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 0;
+}
+
+.milestone-card__connector {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 32px;
+    flex-shrink: 0;
+}
+
+.milestone-card__icon {
+    font-size: 18px;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+}
+
+.milestone-card__line {
+    width: 2px;
+    flex: 1;
+    min-height: 20px;
+    background: rgba(124, 111, 224, 0.15);
+    margin: 4px 0;
+}
+
+.milestone-card__content {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(20px);
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    padding: 18px 22px;
+    margin-bottom: 12px;
+    box-shadow: 0 2px 12px rgba(108, 93, 211, 0.06);
+    transition: all 0.2s ease;
+}
+
+.milestone-card--in_progress .milestone-card__content {
+    border-color: rgba(124, 111, 224, 0.25);
+    box-shadow: 0 4px 20px rgba(124, 111, 224, 0.1);
+}
+
+.milestone-card--completed .milestone-card__content {
+    border-color: rgba(34, 197, 94, 0.2);
+}
+
+.milestone-card__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+}
+
+.milestone-card__title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #2D2B3D;
+    margin: 0;
+}
+
+.milestone-card__month {
+    font-size: 12px;
+    font-weight: 600;
+    color: #7C6FE0;
+    background: rgba(124, 111, 224, 0.08);
+    padding: 3px 10px;
+    border-radius: 12px;
+}
+
+.milestone-card__target {
+    font-size: 13px;
+    color: #6B6A7D;
+    margin: 0 0 12px;
+}
+
+/* ===== COURSE ROWS ===== */
+.milestone-card__courses {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.course-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.course-row__name {
+    flex: 1;
+    font-size: 13px;
+    color: #2D2B3D;
+    font-weight: 500;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.course-row__bar {
+    width: 100px;
+    height: 6px;
+    background: rgba(124, 111, 224, 0.1);
+    border-radius: 10px;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.course-row__fill {
+    height: 100%;
+    background: linear-gradient(90deg, #7C6FE0, #9B8FEF);
+    border-radius: 10px;
+    transition: width 0.5s ease;
+    min-width: 0;
+}
+
+.course-row__pct {
+    font-size: 12px;
+    font-weight: 600;
+    color: #7C6FE0;
+    width: 36px;
+    text-align: right;
+    flex-shrink: 0;
+}
+
+/* Completed course */
+.milestone-card--completed .course-row__fill {
+    background: linear-gradient(90deg, #22C55E, #4ADE80);
+}
+
+.milestone-card--completed .course-row__pct {
+    color: #22C55E;
+}

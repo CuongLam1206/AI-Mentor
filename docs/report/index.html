@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Learnify Tutor AI — Báo cáo tích hợp Chat</title>
+  <meta name="description" content="Tài liệu kỹ thuật và hướng dẫn tích hợp Chat AI vào nền tảng học tập Learnify." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --purple: #7c3aed; --purple-light: #ede9fe; --purple-dark: #5b21b6;
+      --blue: #0ea5e9; --green: #10b981;
+      --gray-50: #f8fafc; --gray-100: #f1f5f9; --gray-200: #e2e8f0;
+      --gray-400: #94a3b8; --gray-600: #475569; --gray-700: #334155; --gray-900: #0f172a;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', sans-serif; background: var(--gray-50); color: var(--gray-700); line-height: 1.7; }
+
+    .hero {
+      background: linear-gradient(135deg, #1e1b4b 0%, #4c1d95 50%, #7c3aed 100%);
+      color: white; padding: 72px 24px 60px; text-align: center; position: relative; overflow: hidden;
+    }
+    .hero::before {
+      content: ''; position: absolute; inset: 0;
+      background: radial-gradient(ellipse at 30% 50%, rgba(139,92,246,0.3) 0%, transparent 60%),
+                  radial-gradient(ellipse at 70% 50%, rgba(59,130,246,0.2) 0%, transparent 60%);
+    }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 99px; padding: 6px 16px; font-size: 13px; font-weight: 500; margin-bottom: 24px;
+    }
+    .hero h1 { font-size: clamp(28px, 5vw, 52px); font-weight: 800; letter-spacing: -1px; margin-bottom: 16px; line-height: 1.15; }
+    .hero p { font-size: 18px; opacity: 0.8; max-width: 580px; margin: 0 auto 20px; }
+    .hero-meta { font-size: 13px; opacity: 0.5; }
+
+    .toc { background: white; border-bottom: 1px solid var(--gray-200); padding: 0 24px; position: sticky; top: 0; z-index: 100; box-shadow: 0 1px 8px rgba(0,0,0,0.06); }
+    .toc-inner { max-width: 960px; margin: 0 auto; display: flex; overflow-x: auto; }
+    .toc-inner::-webkit-scrollbar { display: none; }
+    .toc a { display: block; padding: 14px 16px; font-size: 13px; font-weight: 500; color: var(--gray-600); text-decoration: none; white-space: nowrap; border-bottom: 2px solid transparent; transition: all 0.15s; }
+    .toc a:hover { color: var(--purple); border-bottom-color: var(--purple); }
+
+    main { max-width: 960px; margin: 0 auto; padding: 48px 24px 80px; }
+    .section { margin-bottom: 72px; }
+    .section-title { font-size: 26px; font-weight: 800; color: var(--gray-900); margin-bottom: 28px; padding-bottom: 12px; border-bottom: 2px solid var(--gray-200); display: flex; align-items: center; gap: 10px; }
+
+    /* Feature cards - full width list */
+    .feature-list { display: flex; flex-direction: column; gap: 20px; }
+    .feature-card {
+      background: white; border: 1px solid var(--gray-200); border-radius: 16px;
+      padding: 28px 32px; position: relative; overflow: hidden; transition: all 0.2s;
+    }
+    .feature-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, var(--purple), var(--blue)); }
+    .feature-card:hover { box-shadow: 0 8px 32px rgba(124,58,237,0.1); border-color: #c4b5fd; }
+    .feature-header { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 14px; }
+    .feature-num {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
+      background: var(--purple-light); color: var(--purple); font-weight: 800; font-size: 15px;
+    }
+    .feature-card h3 { font-size: 17px; font-weight: 700; color: var(--gray-900); margin-bottom: 6px; }
+    .feature-desc { font-size: 14.5px; color: var(--gray-700); margin-bottom: 18px; line-height: 1.7; }
+
+    .tech-section { border-top: 1px solid var(--gray-100); padding-top: 16px; }
+    .tech-section-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gray-400); margin-bottom: 10px; }
+    .tech-item { display: flex; gap: 10px; margin-bottom: 8px; font-size: 14px; }
+    .tech-item-name {
+      font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600;
+      background: var(--purple-light); color: var(--purple); border-radius: 6px;
+      padding: 2px 8px; white-space: nowrap; height: fit-content; margin-top: 3px;
+    }
+    .tech-item-name.green { background: #d1fae5; color: #065f46; }
+    .tech-item-name.blue { background: #e0f2fe; color: #0369a1; }
+    .tech-item-name.gray { background: var(--gray-100); color: var(--gray-600); }
+    .tech-item-desc { color: var(--gray-600); line-height: 1.6; font-size: 13.5px; }
+
+    /* Architecture */
+    .arch-box {
+      background: var(--gray-900); color: #e2e8f0; border-radius: 16px; padding: 32px;
+      font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.9; overflow-x: auto;
+    }
+    .arch-box .comment { color: #64748b; }
+    .arch-box .hi { color: #a78bfa; font-weight: 600; }
+    .arch-box .arrow { color: #34d399; }
+    .connect-code {
+      background: #1e1b4b; border-radius: 12px; padding: 20px 24px; margin-top: 16px;
+      font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.8;
+      color: #e2e8f0; overflow-x: auto;
+    }
+    .connect-code .kw { color: #a78bfa; }
+    .connect-code .str { color: #86efac; }
+    .connect-code .fn { color: #67e8f9; }
+
+    /* Checklist */
+    .checklist-group { margin-bottom: 28px; }
+    .checklist-group h4 { font-size: 14px; font-weight: 700; color: var(--gray-900); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .checklist-group h4 .badge { background: var(--purple-light); color: var(--purple); border-radius: 99px; padding: 2px 10px; font-size: 11px; }
+    .check-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; border-radius: 10px; background: white; border: 1px solid var(--gray-200); margin-bottom: 8px; font-size: 14px; }
+    .check-item .box { width: 18px; height: 18px; border: 2px solid var(--gray-200); border-radius: 5px; flex-shrink: 0; margin-top: 1px; }
+    code { background: var(--gray-100); border: 1px solid var(--gray-200); border-radius: 5px; padding: 1px 6px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--purple-dark); }
+
+    .phase-table { width: 100%; border-collapse: collapse; border-radius: 12px; overflow: hidden; border: 1px solid var(--gray-200); }
+    .phase-table th { background: var(--gray-100); padding: 12px 16px; text-align: left; font-size: 13px; font-weight: 600; color: var(--gray-600); border-bottom: 2px solid var(--gray-200); }
+    .phase-table td { padding: 14px 16px; border-bottom: 1px solid var(--gray-100); font-size: 14px; background: white; }
+    .phase-table tr.hl td { background: #fefce8; }
+    .phase-table tr:last-child td { border-bottom: none; }
+    .badge-green { background: #d1fae5; color: #065f46; border-radius: 99px; padding: 2px 10px; font-size: 12px; font-weight: 600; }
+    .badge-yellow { background: #fef3c7; color: #92400e; border-radius: 99px; padding: 2px 10px; font-size: 12px; font-weight: 600; }
+    .badge-red { background: #fee2e2; color: #991b1b; border-radius: 99px; padding: 2px 10px; font-size: 12px; font-weight: 600; }
+
+    /* Video demo */
+    .demo-wrap {
+      position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden;
+      border-radius: 16px; background: #000;
+      box-shadow: 0 16px 48px rgba(0,0,0,0.25);
+    }
+    .demo-wrap iframe {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      border: none; border-radius: 16px;
+    }
+    .demo-card {
+      background: white; border: 1px solid var(--gray-200);
+      border-radius: 20px; padding: 28px; margin-bottom: 0;
+    }
+    .demo-desc {
+      font-size: 14.5px; color: var(--gray-600); margin-top: 16px;
+      display: flex; flex-wrap: wrap; gap: 8px;
+    }
+    .demo-chip {
+      background: var(--purple-light); color: var(--purple);
+      border-radius: 99px; padding: 4px 12px; font-size: 12px; font-weight: 600;
+    }
+
+    footer { background: var(--gray-900); color: var(--gray-400); text-align: center; padding: 40px 24px; font-size: 14px; }
+    footer strong { color: white; }
+
+    @media (max-width: 600px) { .feature-card { padding: 20px; } }
+  </style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="hero-badge">📄 Báo cáo kỹ thuật · Cập nhật 16/03/2026</div>
+  <h1>💬 Learnify Tutor AI<br/>Tài liệu tích hợp Chat</h1>
+  <p>Toàn bộ tính năng, công nghệ và hướng dẫn tích hợp Chat AI vào nền tảng học tập Learnify.</p>
+  <div class="hero-meta">FastAPI · Next.js · Google Gemini · MongoDB</div>
+</div>
+
+<nav class="toc">
+  <div class="toc-inner">
+    <a href="#demo">🎬 Demo</a>
+    <a href="#features">🎓 Tính năng</a>
+    <a href="#architecture">🏗️ Kiến trúc</a>
+    <a href="#integration">🔌 Tích hợp</a>
+  </div>
+</nav>
+
+<main>
+
+  <!-- DEMO VIDEO -->
+  <section class="section" id="demo">
+    <h2 class="section-title">🎬 Demo sản phẩm</h2>
+    <div class="demo-card">
+      <div class="demo-wrap">
+        <iframe
+          src="https://drive.google.com/file/d/1LhZwYBVbW9L2aeU3OQREj48noc8jDW3I/preview"
+          allow="autoplay"
+          allowfullscreen
+        ></iframe>
+      </div>
+      <div class="demo-desc">
+        <span class="demo-chip">🤖 AI Tutor Chat</span>
+        <span class="demo-chip">📚 Lịch sử họi thoại</span>
+        <span class="demo-chip">🧠 Quiz thích ngọi</span>
+        <span class="demo-chip">🎯 Lộ trình cá nhân</span>
+        <span class="demo-chip">📋 Tóm tắt phiên học</span>
+        <span class="demo-chip">📈 Theo dõi tiến độ</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section class="section" id="features">
+    <h2 class="section-title">🎓 Chat AI giúp học viên gì & cần gì để làm được?</h2>
+    <div class="feature-list">
+
+      <div class="feature-card">
+        <div class="feature-header">
+          <div class="feature-num">1</div>
+          <div>
+            <h3>Gia sư 24/7 — hỏi bất cứ điều gì</h3>
+          </div>
+        </div>
+        <div class="feature-desc">Chat hoạt động như một gia sư riêng, giải thích bài, gợi ý hướng suy nghĩ (phương pháp Socratic), nhớ lịch sử hội thoại để nói chuyện tự nhiên xuyên suốt.</div>
+        <div class="tech-section">
+          <div class="tech-section-label">Để làm được điều này cần</div>
+          <div class="tech-item"><span class="tech-item-name">Gemini API</span><span class="tech-item-desc">Bộ não tạo ra câu trả lời. Được chọn vì hỗ trợ <em>streaming</em> (trả lời từng chữ như người thật đang gõ) và xử lý ngữ cảnh dài (nhiều lượt hội thoại).</span></div>
+          <div class="tech-item"><span class="tech-item-name blue">WebSocket</span><span class="tech-item-desc">Kết nối 2 chiều, real-time giữa trình duyệt và server. Dùng WebSocket thay vì REST vì cần stream từng token ngay khi Gemini sinh ra, không chờ response hoàn chỉnh.</span></div>
+          <div class="tech-item"><span class="tech-item-name green">MongoDB</span><span class="tech-item-desc">Lưu toàn bộ lịch sử tin nhắn theo <code>session_id</code>. Mỗi lần chat, server đọc lại lịch sử và inject vào prompt để AI "nhớ" cuộc hội thoại.</span></div>
+        </div>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-header">
+          <div class="feature-num">2</div>
+          <div><h3>AI biết học viên đang học khóa nào</h3></div>
+        </div>
+        <div class="feature-desc">Khi học viên click vào một khóa học trong Learnify, AI ngay lập tức biết và điều chỉnh câu trả lời đúng với nội dung khóa đó.</div>
+        <div class="tech-section">
+          <div class="tech-section-label">Để làm được điều này cần</div>
+          <div class="tech-item"><span class="tech-item-name gray">CustomEvent</span><span class="tech-item-desc">Cơ chế giao tiếp giữa trang Learnify và widget Chat mà không cần reload hay API call. Learnify fire 1 event với thông tin khóa học, Chat lắng nghe và cập nhật context ngay lập tức.</span></div>
+          <div class="tech-item"><span class="tech-item-name">Dynamic Prompt</span><span class="tech-item-desc">Mỗi lần gửi tin nhắn, server tự động xây lại system prompt bằng cách chèn thông tin khóa học (tên, tiến độ, mô tả) vào đầu cuộc hội thoại. AI nhờ đó tự điều chỉnh câu trả lời.</span></div>
+        </div>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-header">
+          <div class="feature-num">3</div>
+          <div><h3>Tạo lộ trình học tập cá nhân</h3></div>
+        </div>
+        <div class="feature-desc">AI phỏng vấn học viên về mục tiêu, deadline, mức hiện tại → tự động thiết kế lộ trình milestones + đề xuất khóa học phù hợp.</div>
+        <div class="tech-section">
+          <div class="tech-section-label">Để làm được điều này cần</div>
+          <div class="tech-item"><span class="tech-item-name">JSON mode</span><span class="tech-item-desc">AI không chỉ trả lời chữ mà còn xuất ra JSON có cấu trúc chặt (tên milestone, thứ tự, khóa học gán vào, deadline). JSON này được lưu thẳng vào DB mà không cần parse thủ công.</span></div>
+          <div class="tech-item"><span class="tech-item-name green">MongoDB</span><span class="tech-item-desc">Lưu mục tiêu và lộ trình trong <code>learning_goals</code>, <code>learning_plans</code>. Server truy vấn 2 collection này để inject vào prompt, giúp AI biết học viên đang ở milestone nào.</span></div>
+        </div>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-header">
+          <div class="feature-num">4</div>
+          <div><h3>Quiz thích nghi theo trình độ</h3></div>
+        </div>
+        <div class="feature-desc">AI sinh câu hỏi phù hợp với nội dung khóa đang học, và tự động điều chỉnh độ khó dựa trên lịch sử điểm của học viên.</div>
+        <div class="tech-section">
+          <div class="tech-section-label">Để làm được điều này cần</div>
+          <div class="tech-item"><span class="tech-item-name">Few-shot prompting</span><span class="tech-item-desc">Prompt có mẫu câu hỏi MCQ chuẩn kèm metadata (chủ đề, độ khó, đáp án đúng). Gemini dựa vào đó tạo ra câu hỏi đúng định dạng, sẵn sàng hiển thị.</span></div>
+          <div class="tech-item"><span class="tech-item-name gray">Adaptive difficulty</span><span class="tech-item-desc">Server tính điểm trung bình từ lịch sử quiz: avg ≥ 80% → Advanced; 60–79% → Intermediate; &lt; 60% → Beginner. Logic này chạy phía server (Python), không phụ thuộc AI.</span></div>
+          <div class="tech-item"><span class="tech-item-name green">quiz_results</span><span class="tech-item-desc">Lưu từng lần làm quiz với score, topic, timestamp. Dùng để tính avg động và hiển thị lịch sử.</span></div>
+        </div>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-header">
+          <div class="feature-num">5</div>
+          <div><h3>Nhắc ôn bài đúng lúc (Spaced Repetition)</h3></div>
+        </div>
+        <div class="feature-desc">AI biết môn nào học viên đã quên và nhắc ôn lại vào đúng thời điểm có hiệu quả nhất.</div>
+        <div class="tech-section">
+          <div class="tech-section-label">Để làm được điều này cần</div>
+          <div class="tech-item"><span class="tech-item-name gray">SM-2 Algorithm</span><span class="tech-item-desc">Thuật toán khoa học tính khoảng cách ôn tập tối ưu. Điểm &lt; 60% → ôn sau 1 ngày, 60–79% → 3 ngày, ≥ 80% → 7 ngày. Server chạy khi có kết quả quiz mới, lưu <code>next_review_date</code>.</span></div>
+          <div class="tech-item"><span class="tech-item-name green">Aggregation Pipeline</span><span class="tech-item-desc">Truy vấn <code>quiz_results</code> theo topic, tính <code>next_review_date</code>, lọc môn đến hạn ôn. Dùng <code>$group</code> và <code>$sort</code> để aggregate nhanh mà không cần load toàn bộ data.</span></div>
+        </div>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-header">
+          <div class="feature-num">6</div>
+          <div><h3>Theo dõi tiến độ & báo cáo tuần</h3></div>
+        </div>
+        <div class="feature-desc">Học viên thấy được mình đã học bao nhiêu ngày, điểm quiz tăng hay giảm, streak liên tiếp mấy ngày.</div>
+        <div class="tech-section">
+          <div class="tech-section-label">Để làm được điều này cần</div>
+          <div class="tech-item"><span class="tech-item-name green">MongoDB Aggregation</span><span class="tech-item-desc">Tổng hợp dữ liệu 7 ngày từ <code>conversations.messages</code> (đếm ngày có chat) và <code>quiz_results</code> (điểm TB theo ngày). Một query duy nhất trả về cả báo cáo tuần.</span></div>
+          <div class="tech-item"><span class="tech-item-name blue">React SVG Chart</span><span class="tech-item-desc">Vẽ biểu đồ điểm quiz 7 ngày bằng CSS + SVG thuần, không cần thư viện chart nặng. Màu tự động: đỏ &lt; 50%, vàng 50–79%, xanh ≥ 80%.</span></div>
+        </div>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-header">
+          <div class="feature-num">7</div>
+          <div><h3>Lịch học & Banner nhắc học đúng giờ</h3></div>
+        </div>
+        <div class="feature-desc">Học viên đặt lịch học (thứ mấy, mấy giờ) → đến giờ mở chat thấy banner nhắc ngay.</div>
+        <div class="tech-section">
+          <div class="tech-section-label">Để làm được điều này cần</div>
+          <div class="tech-item"><span class="tech-item-name blue">setInterval (client)</span><span class="tech-item-desc">Cứ mỗi phút, frontend so sánh giờ hiện tại với lịch học đã lưu. Nếu khớp → hiện banner "📚 Đến giờ học rồi!". Không cần push notification vì học viên đang mở sẵn tab.</span></div>
+          <div class="tech-item"><span class="tech-item-name green">study_schedules</span><span class="tech-item-desc">Lưu cấu hình lịch học (thứ, giờ, phút). Load 1 lần khi mở chat, giữ trong React state để <code>setInterval</code> so sánh.</span></div>
+        </div>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-header">
+          <div class="feature-num">8</div>
+          <div><h3>Ghi chú từ chat, nhảy về đoạn chat nguồn</h3></div>
+        </div>
+        <div class="feature-desc">Học viên pin tin nhắn AI bất kỳ → lưu vào ghi chú → bấm xem lại → nhảy thẳng về đúng cuộc hội thoại đó.</div>
+        <div class="tech-section">
+          <div class="tech-section-label">Để làm được điều này cần</div>
+          <div class="tech-item"><span class="tech-item-name gray">session_id reference</span><span class="tech-item-desc">Khi lưu ghi chú (<code>POST /api/notes</code>), backend lưu thêm <code>session_id</code> của cuộc hội thoại nguồn. Nhờ đó <code>NotesPanel</code> có thể gọi <code>onGoToChat(sessionId)</code> để load đúng cuộc chat đó.</span></div>
+          <div class="tech-item"><span class="tech-item-name green">notes DB</span><span class="tech-item-desc">Lưu ghi chú kèm excerpt (300 ký tự đầu), <code>user_id</code>, <code>session_id</code>, timestamp.</span></div>
+        </div>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-header">
+          <div class="feature-num">9</div>
+          <div><h3>Tóm tắt phiên học</h3></div>
+        </div>
+        <div class="feature-desc">Sau khi tích lũy đủ 10 tin nhắn, nút <strong>"📋 Tóm tắt phiên học"</strong> tự xuất hiện. AI đọc toàn bộ lịch sử và tổng hợp: những gì đã ôn luyện, điểm mạnh, điểm cần cải thiện + lời khuyên cụ thể.</div>
+        <div class="tech-section">
+          <div class="tech-section-label">Để làm được điều này cần</div>
+          <div class="tech-item"><span class="tech-item-name gray">Ngưỡng 10 tin nhắn</span><span class="tech-item-desc">Frontend đếm <code>danhSachTinNhan.length >= 10</code>, chỉ hiện nút khi đủ nội dung để AI tổng hợp có ý nghĩa.</span></div>
+          <div class="tech-item"><span class="tech-item-name green">Conversation history</span><span class="tech-item-desc">Toàn bộ lịch sử phiên đó đã được lưu liên tục. Khi trigger, AI nhận được context đầy đủ của phiên học mà không cần load thêm gì.</span></div>
+          <div class="tech-item"><span class="tech-item-name">Gemini analysis</span><span class="tech-item-desc">Prompt yêu cầu AI phân tích toàn bộ lịch sử (không chỉ tin cuối), nhận diện pattern học tập và đưa ra nhận xét sư phạm.</span></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ARCHITECTURE -->
+  <section class="section" id="architecture">
+    <h2 class="section-title">🏗️ Kiến trúc — Chat là widget độc lập</h2>
+    <div class="arch-box">
+      <span class="comment"># Learnify (mock)         ←→      Chat AI (widget độc lập)</span><br/>
+      <span class="hi">page.tsx</span><br/>
+      &nbsp;&nbsp;└─ selectCourse() <span class="arrow">──→</span>  <span class="hi">ChatPanel.tsx</span><br/>
+      &nbsp;&nbsp;&nbsp;&nbsp; dispatchEvent()&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="hi">ChatMessageArea.tsx</span><br/>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="hi">ChatHistory.tsx</span><br/>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="hi">NotesPanel.tsx ...</span><br/><br/>
+      <span class="comment"># backend/ (FastAPI + MongoDB) — deploy riêng, kết nối qua WebSocket</span>
+    </div>
+    <p style="margin-top:20px; font-size:14px; color:var(--gray-600)"><strong>Điểm kết nối duy nhất</strong> giữa Learnify và Chat — 1 dòng JavaScript:</p>
+    <div class="connect-code">
+      <span class="fn">window</span>.<span class="fn">dispatchEvent</span>(<span class="kw">new</span> <span class="fn">CustomEvent</span>(<span class="str">"learnify:course-context"</span>, {<br/>
+      &nbsp;&nbsp;detail: { courseId, title, category, description, progress }<br/>
+      }));
+    </div>
+  </section>
+
+  <!-- INTEGRATION -->
+  <section class="section" id="integration">
+    <h2 class="section-title">🔌 Cần làm gì để tích hợp vào Learnify thật?</h2>
+
+    <div class="checklist-group">
+      <h4>Backend <span class="badge">Sẵn sàng — chỉ cần deploy</span></h4>
+      <div class="check-item"><div class="box"></div>Deploy <code>backend/</code> lên server (FastAPI + MongoDB)</div>
+      <div class="check-item"><div class="box"></div>Set domain/IP cho backend, lấy URL đầy đủ</div>
+      <div class="check-item"><div class="box"></div>Cấu hình biến môi trường: <code>GOOGLE_API_KEY</code>, <code>MONGODB_URL</code></div>
+      <div class="check-item"><div class="box"></div>(Tùy chọn) Thêm xác thực user vào API nếu Learnify có auth</div>
+    </div>
+
+    <div class="checklist-group">
+      <h4>Frontend — Copy widget chat vào Learnify thật</h4>
+      <div class="check-item"><div class="box"></div>Copy thư mục <code>components/chat/</code> vào project Learnify</div>
+      <div class="check-item"><div class="box"></div>Copy các CSS liên quan: <code>chat.css</code>, <code>settings-screens.css</code></div>
+      <div class="check-item"><div class="box"></div>Set biến môi trường: <code>NEXT_PUBLIC_API_URL=&lt;backend-url&gt;</code></div>
+      <div class="check-item"><div class="box"></div>Mount <code>&lt;ChatPanel&gt;</code> vào layout chính của Learnify</div>
+    </div>
+
+    <div class="checklist-group">
+      <h4>Kết nối dữ liệu — 1 điểm kết nối</h4>
+      <div class="check-item"><div class="box"></div>Khi user click vào khóa học → fire event <code>learnify:course-context</code></div>
+      <div class="check-item"><div class="box"></div>Truyền <code>userId</code> thật (từ session Learnify) vào props của ChatPanel thay vì <code>"default"</code></div>
+    </div>
+
+    <div class="checklist-group">
+      <h4>Dữ liệu học viên — Sync với Learnify thật</h4>
+      <div class="check-item"><div class="box"></div>Sync hồ sơ học viên (<code>learner_profiles</code>) từ Learnify DB → MongoDB của chat</div>
+      <div class="check-item"><div class="box"></div>Sync tiến độ khóa học (<code>course_progress</code>) để AI có context đầy đủ</div>
+      <div class="check-item"><div class="box"></div>(Nâng cao) Webhook: Learnify thật cập nhật tiến độ → tự động cập nhật context AI</div>
+    </div>
+
+    <h3 style="margin-bottom:16px;color:var(--gray-900);font-size:18px;">Thứ tự ưu tiên tích hợp</h3>
+    <table class="phase-table">
+      <tr><th>Giai đoạn</th><th>Việc làm</th><th>Mức độ</th></tr>
+      <tr class="hl"><td><strong>Phase 1</strong></td><td>Deploy backend + mount ChatPanel vào Learnify</td><td><span class="badge-green">🟢 Dễ</span></td></tr>
+      <tr class="hl"><td><strong>Phase 2</strong></td><td>Fire <code>course-context</code> event khi user chọn khóa</td><td><span class="badge-green">🟢 Dễ</span></td></tr>
+      <tr><td><strong>Phase 3</strong></td><td>Truyền <code>userId</code> thật từ session Learnify</td><td><span class="badge-yellow">🟡 Trung bình</span></td></tr>
+      <tr><td><strong>Phase 4</strong></td><td>Sync dữ liệu học viên (profile, progress) 2 chiều</td><td><span class="badge-red">🔴 Phức tạp</span></td></tr>
+    </table>
+    <p style="margin-top:14px;font-size:14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px 16px;color:#166534;">
+      💡 <strong>Phase 1 + 2 có thể làm trong 1 ngày.</strong> Chat sẽ hoạt động đầy đủ với context khóa học thật ngay lập tức.
+    </p>
+  </section>
+
+</main>
+
+<footer>
+  <p>© 2026 <strong>Learnify Tutor AI</strong> · Tài liệu tích hợp Chat · Cập nhật 16/03/2026</p>
+  <p style="margin-top:8px;font-size:12px;">Xây dựng với FastAPI · Next.js · Google Gemini · MongoDB</p>
+</footer>
+
+</body>
+</html>
