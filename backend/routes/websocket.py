@@ -227,14 +227,14 @@ def _chia_doan(van_ban: str, kich_thuoc: int = 20) -> list:
 
 
 @router.websocket("/ws/chat/{session_id}")
-async def websocket_chat(websocket: WebSocket, session_id: str):
+async def websocket_chat(websocket: WebSocket, session_id: str, user_id: str = "guest"):
     """WebSocket endpoint cho chat real-time."""
     await websocket.accept()
-    print(f"🔗 WS kết nối: {session_id}")
+    print(f"🔗 WS kết nối: {session_id}, user={user_id}")
 
     hoi_thoai = await chat_service.lay_hoi_thoai(session_id)
     if not hoi_thoai:
-        hoi_thoai = await chat_service.tao_hoi_thoai("default", session_id)
+        hoi_thoai = await chat_service.tao_hoi_thoai(user_id, session_id)
 
     # Track page context across messages in session
     current_page_context: dict | None = None
@@ -252,7 +252,7 @@ async def websocket_chat(websocket: WebSocket, session_id: str):
                 # Proactive greeting khi mở chat mới
                 msg_id = f"greet_{uuid.uuid4().hex[:8]}"
                 await websocket.send_json({"type": "stream_start", "message_id": msg_id})
-                loi_chao = await tao_loi_chao_proactive("default", current_page_context)
+                loi_chao = await tao_loi_chao_proactive(user_id, current_page_context)
                 for doan in _chia_doan(loi_chao):
                     await websocket.send_json({"type": "stream_chunk", "message_id": msg_id, "content": doan})
                 await websocket.send_json({"type": "stream_end", "message_id": msg_id, "content": loi_chao})
@@ -271,7 +271,7 @@ async def websocket_chat(websocket: WebSocket, session_id: str):
                 phan_hoi = await tao_phan_hoi_ai(
                     noi_dung,
                     lich_su[:-1],
-                    user_id="default",
+                    user_id=user_id,
                     page_context=current_page_context,
                 )
                 for doan in _chia_doan(phan_hoi):
