@@ -66,7 +66,7 @@ function ProgressRing({ pct }: { pct: number }) {
 
 // ===== Phase 3: Progress Dashboard (7-day SVG bar chart) =====
 
-const API_URL_GOALS = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_URL_GOALS = process.env.NEXT_PUBLIC_API_URL || "https://ai-mentor-iwkf.onrender.com";
 
 function ProgressDashboard() {
     const [streakData, setStreakData] = useState<{ streak: number; last_active: string | null; weekly_sessions: number[] } | null>(null);
