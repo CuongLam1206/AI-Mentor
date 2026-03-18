@@ -9,12 +9,17 @@ function SplitLayoutInner() {
 
     if (!ready) return null;
 
+    // Mở tab mới với cùng URL (giữ nguyên token + user params)
+    const openNewTab = () => {
+        window.open(window.location.href, "_blank");
+    };
+
     return (
         <div style={{ position: "fixed", inset: 0, width: "100vw", height: "100vh" }}>
             <ChatPanel
                 onDong={() => {}}
-                fullScreen={true}
-                onToggleFullScreen={() => {}}
+                fullScreen={false}
+                onToggleFullScreen={openNewTab}
                 userId={userId}
             />
         </div>
