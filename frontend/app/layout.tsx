@@ -1,19 +1,12 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import "./components/chat/chat.css";
-import SplitLayout from "./components/chat/SplitLayout";
 
 export const metadata: Metadata = {
-    title: "Learnify – Nền tảng học trực tuyến",
-    description:
-        "Learnify – Nền tảng học trực tuyến thông minh với AI Tutor cá nhân hóa.",
+    title: "Learnify – AI Tutor cá nhân hóa",
+    description: "Learnify – Nền tảng học trực tuyến thông minh với AI Tutor cá nhân hóa.",
 };
 
-export default function RootLayout({
-    children,
-}: {
-    children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
     return (
         <html lang="vi" suppressHydrationWarning>
             <head>
@@ -24,9 +17,7 @@ export default function RootLayout({
                     rel="stylesheet"
                 />
             </head>
-            <body suppressHydrationWarning>
-                <SplitLayout>{children}</SplitLayout>
-            </body>
+            <body suppressHydrationWarning>{children}</body>
         </html>
     );
 }
