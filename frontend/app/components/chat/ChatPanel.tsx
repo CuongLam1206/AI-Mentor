@@ -26,17 +26,10 @@ interface Props {
     onDong: () => void;
     fullScreen?: boolean;
     onToggleFullScreen?: () => void;
+    userId?: string;
 }
 
-export default function ChatPanel({ onDong, fullScreen, onToggleFullScreen }: Props) {
-    // Lấy username từ localStorage dùng làm user_id
-    const [userId] = useState<string>(() => {
-        if (typeof window === "undefined") return "default";
-        try {
-            const auth = JSON.parse(localStorage.getItem("learnify_auth") || "{}");
-            return auth.username || "default";
-        } catch { return "default"; }
-    });
+export default function ChatPanel({ onDong, fullScreen, onToggleFullScreen, userId = "guest" }: Props) {
     const [sessionId, setSessionId] = useState(() => taoSessionId());
     const [danhSachTinNhan, setDanhSachTinNhan] = useState<TinNhan[]>([]);
     const [dangXuLy, setDangXuLy] = useState(false);

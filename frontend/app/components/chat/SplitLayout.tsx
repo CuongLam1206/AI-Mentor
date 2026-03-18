@@ -1,24 +1,31 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { Suspense } from "react";
+import { useTokenAuth } from "@/app/hooks/useTokenAuth";
 import ChatPanel from "./ChatPanel";
 
-export default function SplitLayout({ children }: { children: React.ReactNode }) {
-    const pathname = usePathname();
+function SplitLayoutInner() {
+    const { userId, ready } = useTokenAuth();
 
-    // Trên trang login, chỉ render children (không render chat)
-    if (pathname === "/login") {
-        return <>{children}</>;
-    }
+    if (!ready) return null;
 
-    // Tất cả các route khác: chat fullscreen
     return (
         <div style={{ position: "fixed", inset: 0, width: "100vw", height: "100vh" }}>
             <ChatPanel
                 onDong={() => {}}
                 fullScreen={true}
                 onToggleFullScreen={() => {}}
+                userId={userId}
             />
         </div>
+    );
+}
+
+// Suspense bắt buộc vì useSearchParams cần Suspense boundary trong Next.js
+export default function SplitLayout({ children }: { children: React.ReactNode }) {
+    return (
+        <Suspense fallback={null}>
+            <SplitLayoutInner />
+        </Suspense>
     );
 }
