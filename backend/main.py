@@ -184,54 +184,75 @@ async def tao_lo_trinh(goal_id: str):
 
 @app.get("/api/notes")
 async def lay_ghi_chu(user_id: str = "guest"):
-    db = database.get_db()
-    if not db: return {"notes": []}
-    notes = []
-    async for doc in db.notes.find({"user_id": user_id}).sort("created_at", -1).limit(50):
-        doc["note_id"] = str(doc.pop("_id"))
-        notes.append(doc)
-    return {"notes": notes}
+    try:
+        db = database.get_db()
+        if not db:
+            return {"notes": []}
+        docs = await db.notes.find({"user_id": user_id}).sort("created_at", -1).to_list(50)
+        notes = []
+        for doc in docs:
+            doc["note_id"] = str(doc.pop("_id", ""))
+            notes.append(doc)
+        return {"notes": notes}
+    except Exception as e:
+        print(f"Notes error: {e}")
+        return {"notes": []}
 
 
 @app.post("/api/notes")
 async def luu_ghi_chu(request: _Request):
-    from datetime import datetime, timezone
-    body = await request.json()
-    db = database.get_db()
-    if not db: return {"success": False}
-    note = {"user_id": body.get("user_id", "guest"), "content": body.get("content", ""), "source": body.get("source", "chat"), "session_id": body.get("session_id", ""), "tags": body.get("tags", []), "created_at": datetime.now(timezone.utc).isoformat()}
-    await db.notes.insert_one(note)
-    return {"success": True}
+    try:
+        from datetime import datetime, timezone
+        body = await request.json()
+        db = database.get_db()
+        if not db:
+            return {"success": False}
+        note = {"user_id": body.get("user_id", "guest"), "content": body.get("content", ""), "source": body.get("source", "chat"), "session_id": body.get("session_id", ""), "tags": body.get("tags", []), "created_at": datetime.now(timezone.utc).isoformat()}
+        await db.notes.insert_one(note)
+        return {"success": True}
+    except Exception as e:
+        print(f"Notes POST error: {e}")
+        return {"success": False}
 
 
 @app.delete("/api/notes/{note_id}")
 async def xoa_ghi_chu(note_id: str, user_id: str = "guest"):
-    from bson import ObjectId
-    db = database.get_db()
-    if not db: return {"success": False}
-    await db.notes.delete_one({"_id": ObjectId(note_id), "user_id": user_id})
-    return {"success": True}
+    try:
+        from bson import ObjectId
+        db = database.get_db()
+        if not db:
+            return {"success": False}
+        await db.notes.delete_one({"_id": ObjectId(note_id), "user_id": user_id})
+        return {"success": True}
+    except Exception as e:
+        print(f"Notes DELETE error: {e}")
+        return {"success": False}
 
 
 @app.get("/api/streak")
 async def get_streak(user_id: str = "guest"):
-    from datetime import datetime, timedelta, timezone
-    db = database.get_db()
-    if not db: return {"streak": 0, "last_active": None, "weekly_sessions": [0]*7}
-    col = db.streak_sessions
-    today = datetime.now(timezone.utc).date()
-    today_str = today.isoformat()
-    await col.update_one({"user_id": user_id, "date": today_str}, {"$set": {"user_id": user_id, "date": today_str, "active": True}}, upsert=True)
-    seven_days = [(today - timedelta(days=6-i)).isoformat() for i in range(7)]
-    records = await col.find({"user_id": user_id, "date": {"$in": seven_days}}).to_list(length=100)
-    active_dates = {r["date"] for r in records}
-    weekly_sessions = [1 if d in active_dates else 0 for d in seven_days]
-    streak = 0
-    check = today
-    while check.isoformat() in active_dates:
-        streak += 1
-        check = check - timedelta(days=1)
-    return {"streak": streak, "last_active": today_str, "weekly_sessions": weekly_sessions}
+    try:
+        from datetime import datetime, timedelta, timezone
+        db = database.get_db()
+        if not db:
+            return {"streak": 0, "last_active": None, "weekly_sessions": [0]*7}
+        col = db.streak_sessions
+        today = datetime.now(timezone.utc).date()
+        today_str = today.isoformat()
+        await col.update_one({"user_id": user_id, "date": today_str}, {"$set": {"user_id": user_id, "date": today_str, "active": True}}, upsert=True)
+        seven_days = [(today - timedelta(days=6-i)).isoformat() for i in range(7)]
+        records = await col.find({"user_id": user_id, "date": {"$in": seven_days}}).to_list(100)
+        active_dates = {r["date"] for r in records}
+        weekly_sessions = [1 if d in active_dates else 0 for d in seven_days]
+        streak = 0
+        check = today
+        while check.isoformat() in active_dates:
+            streak += 1
+            check = check - timedelta(days=1)
+        return {"streak": streak, "last_active": today_str, "weekly_sessions": weekly_sessions}
+    except Exception as e:
+        print(f"Streak error: {e}")
+        return {"streak": 0, "last_active": None, "weekly_sessions": [0]*7}
 
 
 @app.get("/api/greeting")
