@@ -20,8 +20,8 @@ const DEFAULT_POS = { right: 28, bottom: 28 };
 const STORAGE_KEY = "learnify-agent-pos";
 
 export default function SplitLayout({ children }: { children: React.ReactNode }) {
-    const [chatMo, setChatMo] = useState(false);
-    const [fullScreen, setFullScreen] = useState(false);
+    const [chatMo, setChatMo] = useState(true);
+    const [fullScreen, setFullScreen] = useState(true);
     const [chatWidth, setChatWidth] = useState(DEFAULT_CHAT_WIDTH);
     const isDragging = useRef(false);
     const startX = useRef(0);
