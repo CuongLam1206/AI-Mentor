@@ -13,7 +13,7 @@ import UserMessage from "./messages/UserMessage";
 import AIMessage from "./messages/AIMessage";
 import TypingIndicator from "./messages/TypingIndicator";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://ai-mentor-iwkf.onrender.com";
 
 // Goal-aware follow-up chips that appear after the last AI message
 const FOLLOWUP_CHIPS = [

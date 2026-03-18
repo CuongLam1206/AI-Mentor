@@ -13,7 +13,7 @@
 
 import { useState, useEffect, useRef, useLayoutEffect } from "react";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://ai-mentor-iwkf.onrender.com";
 
 // ===== Types =====
 interface Course {

@@ -9,7 +9,7 @@ import { useEffect, useState } from "react";
 import ChatPanelWrapper from "../components/chat/ChatPanelWrapper";
 import "./goals.css";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://ai-mentor-iwkf.onrender.com";
 
 interface CourseInMilestone {
     course_id: string;

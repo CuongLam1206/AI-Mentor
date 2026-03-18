@@ -9,7 +9,7 @@
 import { useState, useEffect } from "react";
 import RoadmapDiagram from "./RoadmapDiagram";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://ai-mentor-iwkf.onrender.com";
 
 // ===== Types =====
 

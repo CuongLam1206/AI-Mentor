@@ -8,7 +8,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { TinNhan, TrangThaiKetNoi, TinNhanWS } from "@/app/types/chat";
 
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000";
+const WS_URL = process.env.NEXT_PUBLIC_WS_URL || "wss://ai-mentor-iwkf.onrender.com";
 
 export interface PageContext {
     page: string;
