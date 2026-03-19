@@ -246,39 +246,46 @@ async def _auto_enrich_resources(goal_id: str, user_id: str, milestones: list) -
         return
     updated = False
     for ms in milestones:
-        resources = ms.get("resources", [])
-        # Only enrich if empty or all strings (no rich objects)
-        needs_enrich = (
-            not resources or
-            all(isinstance(r, str) for r in resources)
+        resources = ms.get("resources", []) or []
+        # Enrich if: empty, all strings, OR all are generic search links
+        is_search_only = resources and all(
+            isinstance(r, dict) and (
+                "google.com/search" in r.get("url", "") or
+                "youtube.com/results" in r.get("url", "")
+            )
+            for r in resources
         )
+        needs_enrich = not resources or all(isinstance(r, str) for r in resources) or is_search_only
         if not needs_enrich:
             continue
         topics_str = ", ".join(ms.get("topics", [])[:3]) or ms.get("title", "")
+        title = ms.get("title", "")
         prompt = (
-            f"Gợi ý 2-3 tài liệu học thực tế cho milestone: \"{ms.get('title','')}\"\n"
-            f"Chủ đề: {topics_str}\n\n"
-            "Trả về JSON array, mỗi item gồm:\n"
-            "- name: tên tài liệu rõ ràng\n"
-            "- type: book | website | video | app | course | tool\n"
-            "- url: link thực nếu biết (bỏ trống nếu không chắc)\n"
-            "- description: 2 câu mô tả nội dung và phù hợp ai\n"
-            "- skills: 3 kỹ năng đạt được\n\n"
-            "Chỉ JSON array, không markdown:\n"
-            '[{"name":"...","type":"...","url":"...","description":"...","skills":["..."]}]'
+            f"Gợi ý 3 tài liệu học CỤ THỂ cho: \"{title}\" (chủ đề: {topics_str})\n\n"
+            "Yêu cầu: tài liệu THỰC TẾ có tên và link cụ thể, KHÔNG dùng google.com/search.\n"
+            "Ví dụ tốt:\n"
+            '{"name":"Python.org Official Tutorial","type":"website","url":"https://docs.python.org/3/tutorial/",'
+            '"description":"Tutorial chính thức Python, phù hợp người mới. Bao gồm syntax cơ bản đến advanced.","skills":["Python syntax","OOP","File I/O"]}\n\n'
+            "Trả về JSON array 3 items (chỉ JSON, không markdown):\n"
+            '[{"name":"...","type":"book|website|video|course","url":"https://...real-url...","description":"2 câu","skills":["...","...","..."]}]'
         )
         try:
             resp = client.models.generate_content(model="gemini-2.0-flash", contents=prompt)
-            text = resp.text.strip()
-            if text.startswith("```"):
-                text = "\n".join(text.split("\n")[1:-1])
+            raw = resp.text.strip()
+            import re as _re_ws
+            match = _re_ws.search(r'\[.*\]', raw, _re_ws.DOTALL)
+            text = match.group(0) if match else raw
             rich_resources = _json_ws.loads(text)
             if isinstance(rich_resources, list) and rich_resources:
-                ms["resources"] = [dict(r, completed=False) for r in rich_resources]
+                # Filter out any that still have google search / youtube search URLs
+                filtered = [r for r in rich_resources if "google.com/search" not in r.get("url","") and "youtube.com/results" not in r.get("url","")]
+                if not filtered:
+                    filtered = rich_resources  # Accept all if filter too aggressive
+                ms["resources"] = [dict(r, completed=False) for r in filtered]
                 updated = True
-                print(f"✅ Enriched resources for: {ms.get('title')}")
+                print(f"✅ Enriched: {ms.get('title')} → {[r.get('name') for r in filtered]}")
         except Exception as e:
-            print(f"⚠️ Enrich lỗi ({ms.get('title')}): {e}")
+            print(f"⚠️ Enrich lỗi ({title}): {e}")
 
     if updated:
         try:
