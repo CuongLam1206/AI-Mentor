@@ -125,9 +125,13 @@ async def _build_enhanced_prompt(user_id: str, page_context: dict | None = None)
 - Luôn gọi tên học viên nếu biết.
 - Nếu học viên chưa có hồ sơ, gợi ý vào ⚙️ Cài đặt → Hồ sơ học viên.
 - Khi học viên yêu cầu tạo lộ trình, PHẢI gọi function tao_muc_tieu_va_lo_trinh.
-- Lộ trình gồm các milestone rõ ràng: topics cụ thể, activities thực tế, resources thực tế (sách/website/app).
-- Sau khi tạo, nhắc học viên vào 🎯 Mục tiêu & Lộ trình để xem.
-- KHI HỊC VIÊN HỎi "hôm nay học gì" hoặc "kế hoạch hôm nay": ĐỌC NGAY phần "Mục tiêu & Tiến độ" và đề xuất cụ thể dựa trên milestone đang in_progress.
+- Khi gọi function: mỗi milestone PHẢI điền đầy đủ:
+  * topics: ít nhất 3 chủ đề/kỹ năng cụ thể (VD: "Hàm và vòng lặp", "List comprehension")
+  * activities: ít nhất 2 hoạt động (VD: "Code 30 phút/ngày", "Xem video tutorial")
+  * resources: MẢNG OBJECT với 2-3 tài liệu thực tế, mỗi tài liệu gồm: name (tên), type (book/website/video/app/course/tool), url (link thực nếu có), description (mô tả 2 câu dạy gì), skills (3 kỹ năng đạt được)
+  * KHÔNG để resources: [] — phải gợi ý tài liệu thực tế phù hợp mục tiêu
+- Sau khi tạo, nhắc học viên vào 🎯 Mục tiêu & Lộ trình để xem tài liệu AI gợi ý.
+- KHI HỌC VIÊN HỎI "hôm nay học gì" hoặc "kế hoạch hôm nay": ĐỌC NGAY phần "Mục tiêu & Tiến độ" và đề xuất tài liệu ⭕ chưa học.
 """
     return prompt
 
@@ -185,6 +189,9 @@ async def tao_phan_hoi_ai(
                     # Backward compat: keep empty courses field
                     ms.setdefault("courses", [])
                 plan = await goal_service.luu_lo_trinh(goal["goal_id"], user_id, milestones_data)
+                # Auto-enrich missing resources in background (non-blocking)
+                import asyncio
+                asyncio.create_task(_auto_enrich_resources(goal["goal_id"], user_id, milestones_data))
                 function_response_part = types.Part.from_function_response(
                     name=fc.name,
                     response={
@@ -205,6 +212,57 @@ async def tao_phan_hoi_ai(
     except Exception as e:
         print(f"❌ Lỗi Gemini: {e}")
         return f"⚠️ Xin lỗi, tôi gặp sự cố. Vui lòng thử lại! (Lỗi: {str(e)[:100]})"
+
+
+import json as _json_ws
+
+async def _auto_enrich_resources(goal_id: str, user_id: str, milestones: list) -> None:
+    """Background task: sinh resources đầy đủ cho các milestone còn trống."""
+    client = get_client()
+    if not client:
+        return
+    updated = False
+    for ms in milestones:
+        resources = ms.get("resources", [])
+        # Only enrich if empty or all strings (no rich objects)
+        needs_enrich = (
+            not resources or
+            all(isinstance(r, str) for r in resources)
+        )
+        if not needs_enrich:
+            continue
+        topics_str = ", ".join(ms.get("topics", [])[:3]) or ms.get("title", "")
+        prompt = (
+            f"Gợi ý 2-3 tài liệu học thực tế cho milestone: \"{ms.get('title','')}\"\n"
+            f"Chủ đề: {topics_str}\n\n"
+            "Trả về JSON array, mỗi item gồm:\n"
+            "- name: tên tài liệu rõ ràng\n"
+            "- type: book | website | video | app | course | tool\n"
+            "- url: link thực nếu biết (bỏ trống nếu không chắc)\n"
+            "- description: 2 câu mô tả nội dung và phù hợp ai\n"
+            "- skills: 3 kỹ năng đạt được\n\n"
+            "Chỉ JSON array, không markdown:\n"
+            '[{"name":"...","type":"...","url":"...","description":"...","skills":["..."]}]'
+        )
+        try:
+            resp = client.models.generate_content(model="gemini-2.0-flash", contents=prompt)
+            text = resp.text.strip()
+            if text.startswith("```"):
+                text = "\n".join(text.split("\n")[1:-1])
+            rich_resources = _json_ws.loads(text)
+            if isinstance(rich_resources, list) and rich_resources:
+                ms["resources"] = [dict(r, completed=False) for r in rich_resources]
+                updated = True
+                print(f"✅ Enriched resources for: {ms.get('title')}")
+        except Exception as e:
+            print(f"⚠️ Enrich lỗi ({ms.get('title')}): {e}")
+
+    if updated:
+        try:
+            await goal_service.luu_lo_trinh(goal_id, user_id, milestones)
+            print(f"✅ Auto-enrich hoàn thành cho goal {goal_id}")
+        except Exception as e:
+            print(f"❌ Lưu enrich lỗi: {e}")
 
 
 async def tao_loi_chao_proactive(user_id: str, page_context: dict | None = None) -> str:
