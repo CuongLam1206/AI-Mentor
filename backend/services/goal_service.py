@@ -153,7 +153,6 @@ async def seed_tien_do_mau(user_id: str = "default"):
 
 async def xay_dung_context_hoc_vien(user_id: str) -> str:
     goals = await lay_muc_tieu_user(user_id)
-    course_progress = await lay_tien_do_khoa_hoc(user_id)
 
     if not goals:
         return "[Mục tiêu & Tiến độ]\nHọc viên chưa có mục tiêu học tập nào.\n[End]"
@@ -178,18 +177,25 @@ async def xay_dung_context_hoc_vien(user_id: str) -> str:
 
             lines.append(f"  • Milestones: {done}/{total} hoàn thành")
 
-            # Hiện milestones đang học với % tiến độ khoá học
+            # Chi tiết milestones đang học — bao gồm resource completion
             for ms in in_progress:
-                course_ids = [c["course_id"] for c in ms.get("courses", [])]
-                courses_with_pct = []
-                for cid in course_ids:
-                    pct = course_progress.get(cid, 0)
-                    courses_with_pct.append(f"{cid}({pct}%)")
                 ms_pct = ms.get("progress_pct", 0)
-                courses_str = ", ".join(courses_with_pct) if courses_with_pct else "chưa có khóa"
-                lines.append(f"  • [Đang học] {ms['title']} ({ms_pct}%): {courses_str}")
+                lines.append(f"  • [Đang học] {ms['title']} ({ms_pct}%)")
+                resources = ms.get("resources", [])
+                if resources:
+                    for r in resources:
+                        if isinstance(r, dict):
+                            name = r.get("name", "?")
+                            done_flag = "✅" if r.get("completed") else "⭕"
+                            skills = r.get("skills", [])
+                            skills_str = f" → {', '.join(skills[:2])}" if skills else ""
+                            lines.append(f"    {done_flag} {name}{skills_str}")
+                        else:
+                            lines.append(f"    ⭕ {r}")
+                if ms.get("topics"):
+                    lines.append(f"    📚 Chủ đề: {', '.join(ms['topics'][:3])}")
 
-            # Milestone tiếp theo chưa làm
+            # Milestone tiếp theo
             pending = next((m for m in milestones if m.get("status") == "pending"), None)
             if pending:
                 lines.append(f"  • [Tiếp theo] {pending['title']}: {pending.get('target','')}")

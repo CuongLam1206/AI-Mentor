@@ -782,13 +782,14 @@ function CreateGoalModal({ onSave, onClose, defaultProfile }: {
 
 // ===== Goal Detail View =====
 
-function GoalDetailView({ goal, plan, onBack, onSaved, onDelete, generatingRoadmap }: {
+function GoalDetailView({ goal, plan, onBack, onSaved, onDelete, generatingRoadmap, userId = "guest" }: {
     goal: Goal;
     plan: Plan | null;
     onBack: () => void;
     onSaved: () => void;
     onDelete: () => void;
     generatingRoadmap?: boolean;
+    userId?: string;
 }) {
     const [milestones, setMilestones] = useState<Milestone[]>(plan?.milestones || []);
     const [saving, setSaving] = useState(false);
@@ -950,7 +951,13 @@ function GoalDetailView({ goal, plan, onBack, onSaved, onDelete, generatingRoadm
                             </div>
                         </div>
                     ) : (
-                        <RoadmapDiagram milestones={milestones} goalTitle={goalTitle} />
+                        <RoadmapDiagram
+                            milestones={milestones}
+                            goalTitle={goalTitle}
+                            goalId={goal.goal_id}
+                            userId={userId}
+                            onMilestonesUpdate={(updated) => setMilestones(updated as Milestone[])}
+                        />
                     )
                 )}
 
@@ -1201,6 +1208,7 @@ export default function GoalsScreen({ onBack, userId = "default" }: Props) {
                 onSaved={loadGoals}
                 onDelete={() => { setView("list"); loadGoals(); }}
                 generatingRoadmap={generatingRoadmap === selectedGoal.goal_id}
+                userId={userId}
             />
         );
     }
