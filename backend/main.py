@@ -17,7 +17,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from core import database, ai_client
-from services import goal_service, chat_service, learner_profile_service, course_catalog
+from services import goal_service, chat_service, learner_profile_service
 
 from routes import conversations, profile, goals, websocket as ws_router
 
@@ -81,8 +81,8 @@ async def health():
 
 @app.get("/api/courses")
 async def lay_danh_muc():
-    from services import course_catalog
-    return {"courses": course_catalog.lay_tat_ca_khoa_hoc()}
+    # Course catalog removed — AI generates roadmaps independently
+    return {"courses": []}
 
 
 @app.get("/api/progress/{user_id}")
@@ -143,7 +143,10 @@ async def cap_nhat_milestones(goal_id: str, body: dict):
             ms["milestone_id"] = f"ms_{_uuid.uuid4().hex[:6]}"
         ms.setdefault("status", "pending")
         ms.setdefault("progress_pct", 0)
-        ms.setdefault("courses", [])
+        ms.setdefault("topics", [])
+        ms.setdefault("activities", [])
+        ms.setdefault("resources", [])
+        ms.setdefault("courses", [])  # backward compat
     plan = await goal_service.luu_lo_trinh(goal_id, goal["user_id"], milestones)
     return {"plan": plan}
 
@@ -153,19 +156,25 @@ async def tao_lo_trinh(goal_id: str):
     goal = await goal_service.lay_muc_tieu(goal_id)
     if not goal:
         return {"error": "Không tìm thấy mục tiêu"}
-    all_courses = course_catalog.lay_tat_ca_khoa_hoc()
-    course_info = _json.dumps(all_courses, ensure_ascii=False, indent=2)
     weak_skills = ", ".join(goal.get("weak_skills", []))
     title = goal.get("title", "")
     level = goal.get("current_level", "")
     hours = goal.get("weekly_hours", 10)
     deadline = goal.get("deadline", "6 tháng")
     prompt = (
-        f"Với mục tiêu: {title}, trình độ: {level}, "
-        f"thời gian: {hours}h/tuần, deadline: {deadline}, kỹ năng yếu: {weak_skills}.\n"
-        f"Danh mục khóa Learnify:\n{course_info}\n"
-        "Tạo 4-6 milestones. JSON array không markdown: "
-        '[{"milestone_id":"ms_01","title":"...","month":1,"courses":[{"course_id":"xxx","priority":1}],"target":"...","status":"pending","progress_pct":0}]'
+        f"Bạn là chuyên gia giáo dục. Tạo lộ trình học tập cho:\n"
+        f"- Mục tiêu: {title}\n"
+        f"- Trình độ hiện tại: {level}\n"
+        f"- Thời gian: {hours}h/tuần, deadline: {deadline}\n"
+        f"- Kỹ năng yếu: {weak_skills}\n\n"
+        "Tạo 4-6 milestones theo trình tự từ cơ bản đến nâng cao. Mỗi milestone có:\n"
+        "- Chủ đề cụ thể (topics)\n"
+        "- Hoạt động thực tế (activities)\n"
+        "- Tài nguyên thực tế (resources: sách, website, app)\n\n"
+        "JSON array không markdown:\n"
+        '[{"milestone_id":"ms_01","title":"...","month":1,'
+        '"target":"...","topics":["..."],"activities":["..."],'
+        '"resources":["..."],"status":"pending","progress_pct":0}]'
     )
     try:
         client = _get_client()

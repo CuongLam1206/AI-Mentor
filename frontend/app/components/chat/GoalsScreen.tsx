@@ -20,7 +20,10 @@ interface Milestone {
     target: string;
     status: "pending" | "in_progress" | "completed";
     progress_pct: number;
-    courses: { course_id: string; priority: number }[];
+    topics?: string[];
+    activities?: string[];
+    resources?: string[];
+    courses?: { course_id: string; priority: number }[];  // backward compat
 }
 
 interface Plan {
@@ -492,7 +495,7 @@ function StudyScheduleCard({ userId = "default" }: { userId?: string }) {
 
 // ===== Goal List View =====
 
-function GoalListView({ goals, plans, onSelectGoal, onCreateGoal, onBack, loading, onDeleteGoal, quizHistory }: {
+function GoalListView({ goals, plans, onSelectGoal, onCreateGoal, onBack, loading, onDeleteGoal, quizHistory, userId = "default" }: {
     goals: Goal[];
     plans: Record<string, Plan>;
     onSelectGoal: (g: Goal) => void;
@@ -501,6 +504,7 @@ function GoalListView({ goals, plans, onSelectGoal, onCreateGoal, onBack, loadin
     loading: boolean;
     onDeleteGoal: (id: string) => void;
     quizHistory?: QuizHistoryData | null;
+    userId?: string;
 }) {
     if (loading) return <div className="screen-container"><div className="screen-loading">Đang tải mục tiêu...</div></div>;
 
@@ -528,9 +532,8 @@ function GoalListView({ goals, plans, onSelectGoal, onCreateGoal, onBack, loadin
                 {quizHistory && <WeakTopicBanner data={quizHistory} />}
                 {quizHistory && <QuizScoreChartCollapsible data={quizHistory} />}
                 {quizHistory && <QuizHistory data={quizHistory} />}
-                <SpacedRepetitionPanel userId="default" />
-                <WeeklyReport userId="default" />
-                <StudyScheduleCard userId="default" />
+                <WeeklyReport userId={userId} />
+                <StudyScheduleCard userId={userId} />
 
                 {goals.length === 0 ? (
                     <div className="goals-empty">
@@ -815,6 +818,9 @@ function GoalDetailView({ goal, plan, onBack, onSaved, onDelete, generatingRoadm
             target: "",
             status: "pending",
             progress_pct: 0,
+            topics: [],
+            activities: [],
+            resources: [],
             courses: [],
         }]);
     };
@@ -1010,6 +1016,36 @@ function GoalDetailView({ goal, plan, onBack, onSaved, onDelete, generatingRoadm
                                         </span>
                                     </div>
                                 </div>
+                                {/* Topics / Activities / Resources */}
+                                <div style={{ padding: "6px 12px 10px", display: "flex", flexDirection: "column", gap: 6 }}>
+                                    <div style={{ fontSize: 11, color: "#64748b" }}>
+                                        <span style={{ fontWeight: 600 }}>📚 Topics:</span>{" "}
+                                        <input
+                                            style={{ border: "none", outline: "none", fontSize: 11, color: "#334155", width: "calc(100% - 60px)", background: "transparent" }}
+                                            placeholder="VD: Present Perfect, Passive Voice"
+                                            value={(ms.topics || []).join(", ")}
+                                            onChange={e => { const updated = [...milestones]; updated[idx] = { ...updated[idx], topics: e.target.value.split(",").map(t => t.trim()).filter(Boolean) }; setMilestones(updated); }}
+                                        />
+                                    </div>
+                                    <div style={{ fontSize: 11, color: "#64748b" }}>
+                                        <span style={{ fontWeight: 600 }}>🎯 Hoạt động:</span>{" "}
+                                        <input
+                                            style={{ border: "none", outline: "none", fontSize: 11, color: "#334155", width: "calc(100% - 80px)", background: "transparent" }}
+                                            placeholder="VD: Làm bài tập, Nghe podcast"
+                                            value={(ms.activities || []).join(", ")}
+                                            onChange={e => { const updated = [...milestones]; updated[idx] = { ...updated[idx], activities: e.target.value.split(",").map(t => t.trim()).filter(Boolean) }; setMilestones(updated); }}
+                                        />
+                                    </div>
+                                    <div style={{ fontSize: 11, color: "#64748b" }}>
+                                        <span style={{ fontWeight: 600 }}>🔗 Tài nguyên:</span>{" "}
+                                        <input
+                                            style={{ border: "none", outline: "none", fontSize: 11, color: "#334155", width: "calc(100% - 80px)", background: "transparent" }}
+                                            placeholder="VD: Cambridge Grammar, Grammarly Blog"
+                                            value={(ms.resources || []).join(", ")}
+                                            onChange={e => { const updated = [...milestones]; updated[idx] = { ...updated[idx], resources: e.target.value.split(",").map(t => t.trim()).filter(Boolean) }; setMilestones(updated); }}
+                                        />
+                                    </div>
+                                </div>
                             </div>
                         ))}
                     </div>
@@ -1180,6 +1216,7 @@ export default function GoalsScreen({ onBack, userId = "default" }: Props) {
                 loading={loading}
                 onDeleteGoal={handleDeleteGoal}
                 quizHistory={quizHistory}
+                userId={userId}
             />
             {showCreate && (
                 <CreateGoalModal

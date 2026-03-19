@@ -17,21 +17,12 @@ interface QuizQuestion {
     explanation: string;
 }
 
-interface Course {
-    course_id: string;
-    title: string;
-    category: string;
-    level: string;
-    description: string;
-}
-
 interface Goal {
     goal_id: string;
     title: string;
     current_level: string;
     target_score: string;
     deadline: string;
-    plan_course_ids: string[];
 }
 
 interface Props {
@@ -44,46 +35,37 @@ interface Props {
 type Step = "select" | "loading" | "quiz" | "result";
 
 export default function QuizModal({ goalTitle, topic, userId = "default", onClose }: Props) {
-    // If a specific topic is provided (from chat), skip select screen and go straight to loading
     const hasTopic = !!(topic || goalTitle);
     const [step, setStep] = useState<Step>(hasTopic ? "loading" : "select");
-    const [courses, setCourses] = useState<Course[]>([]);
     const [goals, setGoals] = useState<Goal[]>([]);
-    const [loadingCourses, setLoadingCourses] = useState(!hasTopic); // skip loading if auto-starting
+    const [customTopic, setCustomTopic] = useState("");
+    const [loadingGoals, setLoadingGoals] = useState(!hasTopic);
 
-    // Quiz state
     const [questions, setQuestions] = useState<QuizQuestion[]>([]);
     const [currentQ, setCurrentQ] = useState(0);
     const [selected, setSelected] = useState<number | null>(null);
     const [revealed, setRevealed] = useState(false);
     const [score, setScore] = useState(0);
     const [answers, setAnswers] = useState<(number | null)[]>([]);
-    // Strip markdown formatting for clean display
     const cleanTopic = (topic || goalTitle || "").replace(/[#*`_]/g, "").trim();
     const [resolvedGoal, setResolvedGoal] = useState(cleanTopic);
-    const [resolvedCourseId, setResolvedCourseId] = useState("");
 
     useEffect(() => {
         if (hasTopic) {
-            // Auto-start quiz immediately with the given topic
             startQuiz({ topic: cleanTopic });
         } else {
-            // Load goals/courses for the selection screen
-            Promise.all([
-                fetch(`${API_URL}/api/user/courses?user_id=${userId}`).then(r => r.json()).catch(() => ({})),
-                fetch(`${API_URL}/api/user/goals?user_id=${userId}`).then(r => r.json()).catch(() => ({}))
-            ]).then(([courseData, goalData]) => {
-                setCourses(courseData.courses || []);
-                setGoals(goalData.goals || []);
-            }).finally(() => setLoadingCourses(false));
+            fetch(`${API_URL}/api/user/goals?user_id=${userId}`)
+                .then(r => r.json())
+                .then(d => setGoals(d.goals || []))
+                .catch(() => {})
+                .finally(() => setLoadingGoals(false));
         }
     }, []);
 
-    const startQuiz = async (params: { course_id?: string; goal_id?: string; topic?: string }) => {
+    const startQuiz = async (params: { goal_id?: string; topic?: string }) => {
         setStep("loading");
         try {
             const body: Record<string, string> = { user_id: userId };
-            if (params.course_id) body.course_id = params.course_id;
             if (params.goal_id) body.goal_id = params.goal_id;
             if (params.topic) body.topic = params.topic;
             const res = await fetch(`${API_URL}/api/quiz/generate`, {
@@ -93,7 +75,6 @@ export default function QuizModal({ goalTitle, topic, userId = "default", onClos
             });
             const data = await res.json();
             if (data.goal_title) setResolvedGoal(data.goal_title);
-            if (data.course_id) setResolvedCourseId(data.course_id);
             if (data.quiz && data.quiz.length > 0) {
                 setQuestions(data.quiz);
                 setAnswers(new Array(data.quiz.length).fill(null));
@@ -140,8 +121,7 @@ export default function QuizModal({ goalTitle, topic, userId = "default", onClos
                 body: JSON.stringify({
                     user_id: userId,
                     goal_title: resolvedGoal,
-                    course_id: resolvedCourseId,
-                    course_title: resolvedGoal,
+                    topic: resolvedGoal,
                     score,
                     total: questions.length,
                 }),
@@ -175,58 +155,49 @@ export default function QuizModal({ goalTitle, topic, userId = "default", onClos
                     {/* ===== STEP: SELECT ===== */}
                     {step === "select" && (
                         <div className="quiz-select">
-                            <div className="quiz-select__label">Chọn hình thức kiểm tra</div>
+                            <div className="quiz-select__label">Chọn chủ đề kiểm tra</div>
 
-                            {/* Options: by Goal — one per goal */}
-                            {goals.length > 0 ? (
-                                goals.map(g => (
-                                    <button
-                                        key={g.goal_id}
-                                        className="quiz-select__option quiz-select__option--goal"
-                                        onClick={() => startQuiz({ goal_id: g.goal_id })}
-                                    >
-                                        <span className="quiz-select__icon">🎯</span>
-                                        <div>
-                                            <div className="quiz-select__title">{g.title}</div>
-                                            <div className="quiz-select__desc">
-                                                {g.current_level && `Hiện tại: ${g.current_level}`}{g.target_score ? ` → ${g.target_score}` : ""}
-                                                {g.plan_course_ids.length > 0 && ` · ${g.plan_course_ids.length} khóa học`}
-                                            </div>
-                                        </div>
-                                    </button>
-                                ))
-                            ) : (
+                            {/* Custom topic input */}
+                            <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+                                <input
+                                    className="form-input"
+                                    style={{ flex: 1, fontSize: 13 }}
+                                    placeholder="Nhập chủ đề bất kỳ... VD: IELTS Writing, Python OOP"
+                                    value={customTopic}
+                                    onChange={e => setCustomTopic(e.target.value)}
+                                    onKeyDown={e => e.key === "Enter" && customTopic.trim() && startQuiz({ topic: customTopic.trim() })}
+                                />
                                 <button
-                                    className="quiz-select__option quiz-select__option--goal"
-                                    onClick={() => startQuiz({ goal_id: "" })}
+                                    className="quiz-btn quiz-btn--primary"
+                                    style={{ whiteSpace: "nowrap", padding: "8px 14px", fontSize: 13 }}
+                                    disabled={!customTopic.trim()}
+                                    onClick={() => startQuiz({ topic: customTopic.trim() })}
                                 >
-                                    <span className="quiz-select__icon">🎯</span>
-                                    <div>
-                                        <div className="quiz-select__title">Theo mục tiêu học tập</div>
-                                        <div className="quiz-select__desc">Câu hỏi dựa trên mục tiêu hiện tại của bạn</div>
-                                    </div>
+                                    🚀 Bắt đầu
                                 </button>
-                            )}
+                            </div>
 
-                            {/* Options: by Course */}
-                            {loadingCourses ? (
-                                <div className="quiz-loading"><div className="quiz-loading__spinner" /><span>Đang tải khóa học...</span></div>
-                            ) : courses.length > 0 ? (
+                            {/* Goals */}
+                            {loadingGoals ? (
+                                <div className="quiz-loading"><div className="quiz-loading__spinner" /><span>Đang tải mục tiêu...</span></div>
+                            ) : goals.length > 0 ? (
                                 <>
-                                    <div className="quiz-select__divider">— hoặc chọn khóa học —</div>
-                                    <div className="quiz-select__courses">
-                                        {courses.map(c => (
-                                            <button
-                                                key={c.course_id}
-                                                className="quiz-select__course-item"
-                                                onClick={() => startQuiz({ course_id: c.course_id })}
-                                            >
-                                                <span className="quiz-select__course-cat">{c.category}</span>
-                                                <span className="quiz-select__course-title">{c.title}</span>
-                                                <span className="quiz-select__course-level">{c.level}</span>
-                                            </button>
-                                        ))}
-                                    </div>
+                                    <div className="quiz-select__divider">— hoặc quiz theo mục tiêu —</div>
+                                    {goals.map(g => (
+                                        <button
+                                            key={g.goal_id}
+                                            className="quiz-select__option quiz-select__option--goal"
+                                            onClick={() => startQuiz({ goal_id: g.goal_id })}
+                                        >
+                                            <span className="quiz-select__icon">🎯</span>
+                                            <div>
+                                                <div className="quiz-select__title">{g.title}</div>
+                                                <div className="quiz-select__desc">
+                                                    {g.current_level && `Hiện tại: ${g.current_level}`}{g.target_score ? ` → ${g.target_score}` : ""}
+                                                </div>
+                                            </div>
+                                        </button>
+                                    ))}
                                 </>
                             ) : null}
                         </div>

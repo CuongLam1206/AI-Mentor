@@ -11,7 +11,6 @@ from core.ai_client import get_client
 import services.chat_service as chat_service
 import services.goal_service as goal_service
 import services.learner_profile_service as learner_profile_service
-import services.course_catalog as course_catalog
 
 router = APIRouter()
 
@@ -29,19 +28,30 @@ def _build_tools():
                     "title": {"type": "string", "description": "Tiêu đề mục tiêu"},
                     "target_score": {"type": "number", "description": "Điểm mục tiêu"},
                     "current_level": {"type": "string", "description": "Trình độ hiện tại"},
-                    "deadline": {"type": "string", "description": "Hạn chót YYYY-MM-DD"},
+                    "deadline": {"type": "string", "description": "Hạn chật YYYY-MM-DD"},
                     "weak_skills": {"type": "array", "items": {"type": "string"}, "description": "Kỹ năng yếu"},
                     "milestones": {
                         "type": "array",
                         "items": {
                             "type": "object",
                             "properties": {
-                                "title": {"type": "string"},
-                                "month": {"type": "integer"},
-                                "target": {"type": "string"},
-                                "courses": {
+                                "title": {"type": "string", "description": "Tên milestone"},
+                                "month": {"type": "integer", "description": "Tháng thực hiện"},
+                                "target": {"type": "string", "description": "Mục tiêu cụ thể của milestone"},
+                                "topics": {
                                     "type": "array",
-                                    "items": {"type": "object", "properties": {"course_id": {"type": "string"}, "priority": {"type": "integer"}}, "required": ["course_id", "priority"]}
+                                    "items": {"type": "string"},
+                                    "description": "Danh sách chủ đề/kỹ năng cần học trong milestone này"
+                                },
+                                "activities": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                    "description": "Các hoạt động học tập (VD: đọc sách, làm bài tập, nghe podcast)"
+                                },
+                                "resources": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                    "description": "Tài nguyên đề xuất (sách, website, app, kênh YouTube)"
                                 }
                             },
                             "required": ["title", "month", "target"]
@@ -80,14 +90,9 @@ def _build_page_context_text(page_context: dict | None) -> str:
 
 
 async def _build_enhanced_prompt(user_id: str, page_context: dict | None = None) -> str:
-    """Tổng hợp system prompt động từ profile + goals + courses + page context."""
+    """Tổng hợp system prompt động từ profile + goals + page context."""
     learner_context = await learner_profile_service.build_context(user_id)
     student_context = await goal_service.xay_dung_context_hoc_vien(user_id)
-    all_courses = course_catalog.lay_tat_ca_khoa_hoc()
-    course_list = "\n".join([
-        f"- {c['course_id']}: {c['title']} ({c['category']}, {c['level']}, {c['duration_hours']}h)"
-        for c in all_courses
-    ])
     page_ctx_text = _build_page_context_text(page_context)
 
     prompt = f"""{SYSTEM_PROMPT_BASE}
@@ -97,9 +102,6 @@ async def _build_enhanced_prompt(user_id: str, page_context: dict | None = None)
 
 ## Mục tiêu & Tiến độ
 {student_context}
-
-## Danh mục khóa học Learnify
-{course_list}
 """
     if page_ctx_text:
         prompt += f"\n## Ngữ cảnh hiện tại\n{page_ctx_text}\n"
@@ -108,12 +110,10 @@ async def _build_enhanced_prompt(user_id: str, page_context: dict | None = None)
 ## Quan trọng
 - Luôn gọi tên học viên nếu biết.
 - Nếu học viên chưa có hồ sơ, gợi ý vào ⚙️ Cài đặt → Hồ sơ học viên.
-- Khi đề xuất lộ trình, chọn từ danh mục khóa học trên.
 - Khi học viên yêu cầu tạo lộ trình, PHẢI gọi function tao_muc_tieu_va_lo_trinh.
-- Sau khi tạo, nhắc học viên vào 🎯 Mục tiêu & Lộ trình trong Cài đặt.
-- Khi trả lời có liên quan đến tiến độ khóa học, hãy đề cập cụ thể % đã học.
-- KHI HỌC VIÊN HỎI "hôm nay học gì" hoặc "kế hoạch hôm nay": ĐỌC NGAY phần "Mục tiêu & Tiến độ học viên" ở trên và đề xuất cụ thể dựa trên milestone đang in_progress. KHÔNG hỏi lại mục tiêu nếu đã có trong context.
-- KHI HỌC VIÊN HỎI về IELTS/Toán/Python: kiểm tra xem họ đã có mục tiêu liên quan trong context chưa trước khi hỏi lại.
+- Lộ trình gồm các milestone rõ ràng: topics cụ thể, activities thực tế, resources thực tế (sách/website/app).
+- Sau khi tạo, nhắc học viên vào 🎯 Mục tiêu & Lộ trình để xem.
+- KHI HỊC VIÊN HỎi "hôm nay học gì" hoặc "kế hoạch hôm nay": ĐỌC NGAY phần "Mục tiêu & Tiến độ" và đề xuất cụ thể dựa trên milestone đang in_progress.
 """
     return prompt
 
@@ -165,6 +165,10 @@ async def tao_phan_hoi_ai(
                     ms["milestone_id"] = f"ms_{uuid.uuid4().hex[:6]}"
                     ms.setdefault("status", "pending")
                     ms.setdefault("progress_pct", 0)
+                    ms.setdefault("topics", [])
+                    ms.setdefault("activities", [])
+                    ms.setdefault("resources", [])
+                    # Backward compat: keep empty courses field
                     ms.setdefault("courses", [])
                 plan = await goal_service.luu_lo_trinh(goal["goal_id"], user_id, milestones_data)
                 function_response_part = types.Part.from_function_response(
