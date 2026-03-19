@@ -404,6 +404,7 @@ export default function RoadmapDiagram({ milestones: initialMilestones, goalTitl
     const enrichResources = useCallback(async () => {
         if (!goalId || enriching) return;
         setEnriching(true);
+        setSavedMsg("⏳ Đang gọi AI...");
         try {
             const res = await fetch(`${API_URL}/api/goals/${goalId}/enrich-resources`, {
                 method: "POST",
@@ -411,14 +412,26 @@ export default function RoadmapDiagram({ milestones: initialMilestones, goalTitl
                 body: JSON.stringify({ user_id: userId }),
             });
             const data = await res.json();
-            if (data.milestones) {
+            console.log("🔮 Enrich response:", data);
+            if (data.error) {
+                setSavedMsg(`⚠️ ${data.error}`);
+            } else if (data.milestones) {
                 setMilestones(data.milestones);
                 onMilestonesUpdate?.(data.milestones);
-                setSavedMsg(`✓ Đã gợi ý ${data.enriched} milestone`);
-                setTimeout(() => setSavedMsg(""), 3000);
+                if ((data.enriched ?? 0) > 0) {
+                    setSavedMsg(`✓ Đã gợi ý ${data.enriched} milestone`);
+                } else {
+                    setSavedMsg("⚠️ Không cần cập nhật (đã có tài liệu)");
+                }
             }
-        } catch { /* silent */ } finally { setEnriching(false); }
+            setTimeout(() => setSavedMsg(""), 4000);
+        } catch (e) {
+            console.error("Enrich error:", e);
+            setSavedMsg("❌ Lỗi kết nối API");
+            setTimeout(() => setSavedMsg(""), 3000);
+        } finally { setEnriching(false); }
     }, [goalId, userId, enriching, onMilestonesUpdate]);
+
 
     const handleResourceClick = useCallback((r: Resource, msIdx: number, rIdx: number, action?: "toggle") => {
         if (action === "toggle") {

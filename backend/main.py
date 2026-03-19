@@ -233,46 +233,58 @@ async def tao_thong_tin_tai_lieu(request: _Request):
 @app.post("/api/goals/{goal_id}/enrich-resources")
 async def lam_giau_tai_nguyen(goal_id: str, request: _Request):
     """Sinh tài liệu AI cho tất cả milestones còn rỗng resources."""
+    import re as _re
     body = await request.json()
     user_id = body.get("user_id", "guest")
+    print(f"🔮 Enrich resources: goal={goal_id}, user={user_id}")
 
     plan = await goal_service.lay_lo_trinh(goal_id)
     if not plan:
-        return {"error": "Không tìm thấy lộ trình"}
+        print(f"❌ Không tìm thấy plan cho goal_id={goal_id}")
+        return {"error": "Không tìm thấy lộ trình", "enriched": 0, "milestones": []}
 
     milestones = plan.get("milestones", [])
+    print(f"📋 Tổng milestones: {len(milestones)}")
     client = _get_client()
     if not client:
-        return {"error": "Chưa cấu hình Gemini API"}
+        return {"error": "Chưa cấu hình Gemini API", "enriched": 0, "milestones": milestones}
 
     enriched_count = 0
     for ms in milestones:
-        resources = ms.get("resources", [])
+        resources = ms.get("resources") or []
         needs = not resources or all(isinstance(r, str) for r in resources)
+        print(f"  → {ms.get('title')}: needs={needs}, resources={len(resources)}")
         if not needs:
             continue
         topics_str = ", ".join(ms.get("topics", [])[:3]) or ms.get("title", "")
         prompt = (
             f"Gợi ý 3 tài liệu học thực tế cho milestone: \"{ms.get('title','')}\"\n"
             f"Chủ đề: {topics_str}\n\n"
-            "Trả về JSON array, mỗi item: name, type (book|website|video|app|course|tool), "
-            "url (link thực nếu biết), description (2 câu dạy gì), skills (3 kỹ năng)\n"
-            "Chỉ JSON array:\n"
-            '[{"name":"...","type":"...","url":"...","description":"...","skills":["..."]}]'
+            "Trả về JSON array (KHÔNG có markdown, KHÔNG giải thích), mỗi item:\n"
+            "name, type(book|website|video|app|course|tool), url(link thực), description(2 câu), skills(mảng 3 kỹ năng)\n"
+            "Ví dụ: [{\"name\":\"Real Python\",\"type\":\"website\",\"url\":\"https://realpython.com\","
+            "\"description\":\"...\",\"skills\":[\"...\",\"...\",\"...\"]}]"
         )
         try:
             resp = client.models.generate_content(model="gemini-2.0-flash", contents=prompt)
-            text = resp.text.strip()
-            if text.startswith("```"): text = "\n".join(text.split("\n")[1:-1])
+            raw = resp.text.strip()
+            print(f"  📩 Raw response ({len(raw)} chars): {raw[:200]}")
+            # Robust JSON extraction: find [ ... ] - greedy to capture nested objects
+            match = _re.search(r'\[.*\]', raw, _re.DOTALL)
+            text = match.group(0) if match else raw
             rich = _json.loads(text)
             if isinstance(rich, list) and rich:
                 ms["resources"] = [dict(r, completed=False) for r in rich]
                 enriched_count += 1
+                print(f"  ✅ Enriched: {[r.get('name') for r in rich]}")
+            else:
+                print(f"  ⚠️ Empty or invalid list: {rich}")
         except Exception as e:
-            print(f"⚠️ Enrich lỗi {ms.get('title')}: {e}")
+            print(f"  ❌ Enrich lỗi {ms.get('title')}: {e} | raw: {raw[:100] if 'raw' in dir() else '?'}")
 
     if enriched_count > 0:
         await goal_service.luu_lo_trinh(goal_id, user_id, milestones)
+        print(f"✅ Saved enriched plan: {enriched_count} milestones updated")
 
     return {"enriched": enriched_count, "milestones": milestones}
 
