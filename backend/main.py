@@ -203,40 +203,47 @@ async def tao_lo_trinh(goal_id: str):
         ms["resources"] = []  # will fill in pass 2
 
     # === PASS 2: Generate ALL resources in one batch call ===
+    # Use 0-based index to match Gemini's expected idx
     ms_list = "\n".join(
-        f"{i+1}. \"{ms.get('title','')}\" - chủ đề: {', '.join(ms.get('topics', [])[:3])}"
+        f"{i}. \"{ms.get('title','')}\" - chủ đề: {', '.join(ms.get('topics', [])[:3])}"
         for i, ms in enumerate(milestones)
     )
     prompt2 = (
-        f"Cho {len(milestones)} milestones học \"{title}\":\n{ms_list}\n\n"
-        "Gợi ý 2-3 tài liệu thực tế cho TỪNG milestone. "
-        "Trả về JSON array với index milestone (0-based):\n"
-        '[{"idx":0,"resources":[{"name":"...","type":"website","url":"https://...","description":"...","skills":["..."]}]}]\n'
+        f"Cho {len(milestones)} milestones (index 0 đến {len(milestones)-1}) học \"{title}\":\n{ms_list}\n\n"
+        "Gợi ý 2-3 tài liệu thực tế cho TỪNG milestone với idx tương ứng (0-based).\n"
+        "Trả về JSON array:\n"
+        '[{"idx":0,"resources":[{"name":"...","type":"website","url":"https://...","description":"2 câu","skills":["..."]}]}]\n'
         "CHỈ JSON array, không giải thích."
     )
     try:
         resp2 = client.models.generate_content(model="gemini-2.0-flash", contents=prompt2)
         resource_data = extract_json_array(resp2.text)
         print(f"✅ Pass 2: resources for {len(resource_data)} milestones")
-        for item in resource_data:
-            idx = item.get("idx", 0)
+        # Match by order as primary, idx as secondary (safer)
+        for pos, item in enumerate(resource_data):
+            idx = item.get("idx", pos)
+            # Clamp to valid range
+            if idx >= len(milestones): idx = pos
             if 0 <= idx < len(milestones):
-                milestones[idx]["resources"] = [
-                    dict(r, completed=False) for r in item.get("resources", [])
-                ]
+                resources = item.get("resources", [])
+                if resources:
+                    milestones[idx]["resources"] = [dict(r, completed=False) for r in resources]
     except Exception as e:
-        print(f"⚠️ Pass 2 lỗi (resources sẽ rỗng): {e}")
-        # Fallback: simple search-based resources
-        for ms in milestones:
+        print(f"⚠️ Pass 2 lỗi: {e}")
+
+    # Post-pass-2 fallback: fill any milestone still without resources
+    for ms in milestones:
+        if not ms.get("resources"):
             query = ms.get("title", title)
             ms["resources"] = [{
-                "name": f"Google: {query}",
+                "name": f"Tìm kiếm: {query}",
                 "type": "website",
                 "url": f"https://www.google.com/search?q={query.replace(' ', '+')}+tutorial",
                 "description": f"Tìm kiếm tài liệu học {query} trên Google.",
-                "skills": ms.get("topics", [])[:3],
+                "skills": ms.get("topics", [])[:3] or [query],
                 "completed": False,
             }]
+            print(f"  → Fallback resource cho: {query}")
 
     plan = await goal_service.luu_lo_trinh(goal_id, goal["user_id"], milestones)
     return {"plan": plan}
