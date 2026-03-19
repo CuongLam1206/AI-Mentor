@@ -168,13 +168,15 @@ async def tao_lo_trinh(goal_id: str):
         f"- Thời gian: {hours}h/tuần, deadline: {deadline}\n"
         f"- Kỹ năng yếu: {weak_skills}\n\n"
         "Tạo 4-6 milestones theo trình tự từ cơ bản đến nâng cao. Mỗi milestone có:\n"
-        "- Chủ đề cụ thể (topics)\n"
-        "- Hoạt động thực tế (activities)\n"
-        "- Tài nguyên thực tế (resources: sách, website, app)\n\n"
+        "- topics: danh sách chủ đề/kỹ năng\n"
+        "- activities: hoạt động học tập cụ thể\n"
+        "- resources: mảng object, mỗi item gồm: name, type (book|website|video|app|course|tool), "
+        "url (link thực), description (2-3 câu mô tả dạy gì), skills (mảng kỹ năng đạt được)\n\n"
         "JSON array không markdown:\n"
-        '[{"milestone_id":"ms_01","title":"...","month":1,'
-        '"target":"...","topics":["..."],"activities":["..."],'
-        '"resources":["..."],"status":"pending","progress_pct":0}]'
+        '[{"milestone_id":"ms_01","title":"...","month":1,"target":"...",'
+        '"topics":["..."],"activities":["..."],'
+        '"resources":[{"name":"...","type":"book","url":"...","description":"...","skills":["..."]}],'
+        '"status":"pending","progress_pct":0}]'
     )
     try:
         client = _get_client()

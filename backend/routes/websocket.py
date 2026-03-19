@@ -50,8 +50,22 @@ def _build_tools():
                                 },
                                 "resources": {
                                     "type": "array",
-                                    "items": {"type": "string"},
-                                    "description": "Tài nguyên đề xuất (sách, website, app, kênh YouTube)"
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "name": {"type": "string", "description": "Tên tài liệu / khóa học / website"},
+                                            "type": {"type": "string", "description": "Loại tài liệu: book | website | video | app | course | tool"},
+                                            "url": {"type": "string", "description": "Link hoặc nơi tìm thấy (có thể để trống)"},
+                                            "description": {"type": "string", "description": "Tóm tắt tài liệu dạy gì, phù hợp học viên như thế nào"},
+                                            "skills": {
+                                                "type": "array",
+                                                "items": {"type": "string"},
+                                                "description": "Kỹ năng cụ thể đạt được sau khi học xong tài liệu này"
+                                            }
+                                        },
+                                        "required": ["name", "description"]
+                                    },
+                                    "description": "Tài nguyên học cụ thể kèm mô tả chi tiết"
                                 }
                             },
                             "required": ["title", "month", "target"]
