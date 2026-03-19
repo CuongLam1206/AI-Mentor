@@ -185,13 +185,36 @@ async def tao_phan_hoi_ai(
                     ms.setdefault("progress_pct", 0)
                     ms.setdefault("topics", [])
                     ms.setdefault("activities", [])
-                    ms.setdefault("resources", [])
-                    # Backward compat: keep empty courses field
                     ms.setdefault("courses", [])
+                    # Fill minimal resources immediately if AI didn't include them
+                    existing_resources = ms.get("resources", [])
+                    has_rich = existing_resources and any(isinstance(r, dict) and r.get("url") for r in existing_resources)
+                    if not has_rich:
+                        topic = ms.get("topics", [ms.get("title", "")])[0] if ms.get("topics") else ms.get("title", "")
+                        q = topic.replace(" ", "+")
+                        ms["resources"] = [
+                            {
+                                "name": f"🔍 {topic}",
+                                "type": "website",
+                                "url": f"https://www.google.com/search?q={q}+tutorial+học",
+                                "description": f"Tìm kiếm tài liệu và hướng dẫn về {topic} trên Google.",
+                                "skills": ms.get("topics", [])[:2] or [topic],
+                                "completed": False,
+                            },
+                            {
+                                "name": f"📺 YouTube: {topic}",
+                                "type": "video",
+                                "url": f"https://www.youtube.com/results?search_query={q}+hướng+dẫn",
+                                "description": f"Video hướng dẫn học {topic} từ các kênh uy tín.",
+                                "skills": ms.get("topics", [])[1:3] or [topic],
+                                "completed": False,
+                            }
+                        ]
                 plan = await goal_service.luu_lo_trinh(goal["goal_id"], user_id, milestones_data)
-                # Auto-enrich missing resources in background (non-blocking)
+                # Background AI enrich: try to upgrade search links to real AI resources
                 import asyncio
                 asyncio.create_task(_auto_enrich_resources(goal["goal_id"], user_id, milestones_data))
+
                 function_response_part = types.Part.from_function_response(
                     name=fc.name,
                     response={
