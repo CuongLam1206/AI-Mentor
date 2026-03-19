@@ -406,31 +406,66 @@ export default function RoadmapDiagram({ milestones: initialMilestones, goalTitl
         setEnriching(true);
         setSavedMsg("⏳ Đang tạo gợi ý...");
         try {
-            const res = await fetch(`${API_URL}/api/goals/${goalId}/generate-plan`, { method: "POST" });
-            const data = await res.json();
-            console.log("🔮 Generate-plan response:", JSON.stringify(data).slice(0, 500));
-            if (data.error) {
-                setSavedMsg(`⚠️ ${data.error}`);
-                setTimeout(() => setSavedMsg(""), 3000);
-                return;
-            }
-            const newMs: Milestone[] = data.plan?.milestones || [];
-            if (!newMs.length) {
-                setSavedMsg("⚠️ AI không trả về tài liệu");
-                setTimeout(() => setSavedMsg(""), 3000);
-                return;
-            }
-            // Directly replace milestones — generate-plan already saved to DB
-            // Don't call onMilestonesUpdate to avoid useEffect reset loop
-            setMilestones(newMs);
-            setSavedMsg(`✓ Đã gợi ý tài liệu cho ${newMs.length} milestones!`);
+            // Try generate-plan to get fresh milestones with AI resources
+            let workingMs: Milestone[] = [...milestones];
+            try {
+                const res = await fetch(`${API_URL}/api/goals/${goalId}/generate-plan`, { method: "POST" });
+                const data = await res.json();
+                console.log("🔮 Generate-plan:", JSON.stringify(data).slice(0, 300));
+                if (!data.error && data.plan?.milestones?.length) {
+                    workingMs = data.plan.milestones;
+                }
+            } catch { /* use local milestones */ }
+
+            // CLIENT-SIDE FALLBACK: guaranteed resources for any milestone still empty
+            const withResources: Milestone[] = workingMs.map(ms => {
+                const existing = (ms.resources || []).filter(r =>
+                    typeof r === "object" && (r as Resource).name
+                );
+                if (existing.length > 0) return { ...ms, resources: existing };
+                // Build search URL from title/topics
+                const query = encodeURIComponent((ms.title || ms.target || "").trim());
+                const topics = (ms.topics || []).slice(0, 3);
+                return {
+                    ...ms,
+                    resources: [
+                        {
+                            name: `🔍 Tìm kiếm: ${ms.title || ms.target}`,
+                            type: "website" as const,
+                            url: `https://www.google.com/search?q=${query}+tutorial+course`,
+                            description: `Tìm kiếm tài liệu và khóa học về chủ đề này trên Google.`,
+                            skills: topics.length ? topics : ["Kiến thức cơ bản", "Kỹ năng thực hành"],
+                            completed: false,
+                        },
+                        {
+                            name: `📺 YouTube: ${ms.title || ms.target}`,
+                            type: "video" as const,
+                            url: `https://www.youtube.com/results?search_query=${query}+tutorial`,
+                            description: `Xem hướng dẫn video từ các kênh giáo dục uy tín trên YouTube.`,
+                            skills: topics.length ? topics.slice(1) : ["Học qua video", "Thực hành theo"],
+                            completed: false,
+                        }
+                    ] as Resource[],
+                };
+            });
+
+            setMilestones(withResources);
+            // Save to DB with resources
+            await fetch(`${API_URL}/api/goals/${goalId}/milestones`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ milestones: withResources }),
+            });
+            const enriched = withResources.filter(m => (m.resources?.length ?? 0) > 0).length;
+            setSavedMsg(`✓ Đã thêm tài liệu cho ${enriched}/${withResources.length} milestones!`);
             setTimeout(() => setSavedMsg(""), 5000);
         } catch (e) {
             console.error("Enrich error:", e);
             setSavedMsg("❌ Lỗi kết nối");
             setTimeout(() => setSavedMsg(""), 3000);
         } finally { setEnriching(false); }
-    }, [goalId, enriching]);
+    }, [goalId, enriching, milestones]);
+
 
 
 
