@@ -406,49 +406,32 @@ export default function RoadmapDiagram({ milestones: initialMilestones, goalTitl
         setEnriching(true);
         setSavedMsg("⏳ Đang tạo gợi ý...");
         try {
-            // Call generate-plan (proven-working endpoint) to get fresh milestone data with resources
             const res = await fetch(`${API_URL}/api/goals/${goalId}/generate-plan`, { method: "POST" });
             const data = await res.json();
-            console.log("🔮 Generate-plan response:", data);
+            console.log("🔮 Generate-plan response:", JSON.stringify(data).slice(0, 500));
             if (data.error) {
                 setSavedMsg(`⚠️ ${data.error}`);
                 setTimeout(() => setSavedMsg(""), 3000);
                 return;
             }
-            const newPlanMilestones: Milestone[] = data.plan?.milestones || [];
-            if (!newPlanMilestones.length) {
+            const newMs: Milestone[] = data.plan?.milestones || [];
+            if (!newMs.length) {
                 setSavedMsg("⚠️ AI không trả về tài liệu");
                 setTimeout(() => setSavedMsg(""), 3000);
                 return;
             }
-            // Merge: preserve existing status/progress/title, take missing resources/topics/activities
-            const merged: Milestone[] = milestones.map((ms, i) => {
-                const fresh = newPlanMilestones[i] || newPlanMilestones[0];
-                const hasResources = ms.resources && ms.resources.length > 0 &&
-                    ms.resources.some(r => typeof r === "object");
-                return {
-                    ...ms,
-                    topics: ms.topics?.length ? ms.topics : (fresh.topics || []),
-                    activities: ms.activities?.length ? ms.activities : (fresh.activities || []),
-                    resources: hasResources ? ms.resources : (fresh.resources || []),
-                };
-            });
-            setMilestones(merged);
-            onMilestonesUpdate?.(merged);
-            // Save merged back to DB
-            await fetch(`${API_URL}/api/goals/${goalId}/milestones`, {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ milestones: merged }),
-            });
-            setSavedMsg("✓ Đã gợi ý tài liệu thành công!");
-            setTimeout(() => setSavedMsg(""), 4000);
+            // Directly replace milestones — generate-plan already saved to DB
+            // Don't call onMilestonesUpdate to avoid useEffect reset loop
+            setMilestones(newMs);
+            setSavedMsg(`✓ Đã gợi ý tài liệu cho ${newMs.length} milestones!`);
+            setTimeout(() => setSavedMsg(""), 5000);
         } catch (e) {
             console.error("Enrich error:", e);
             setSavedMsg("❌ Lỗi kết nối");
             setTimeout(() => setSavedMsg(""), 3000);
         } finally { setEnriching(false); }
-    }, [goalId, userId, enriching, milestones, onMilestonesUpdate]);
+    }, [goalId, enriching]);
+
 
 
 
