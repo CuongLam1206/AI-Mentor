@@ -381,6 +381,18 @@ export default function RoadmapDiagram({ milestones: initialMilestones, goalTitl
     // Sync when parent gives new milestones (e.g. after AI generation)
     useEffect(() => { setMilestones(initialMilestones); }, [initialMilestones]);
 
+    // Auto-enrich: if any milestone has no URL resources, trigger enrichResources after short delay
+    const hasEmptyResources = initialMilestones.some(m => {
+        const res = m.resources || [];
+        return !res.length || !(res as (Resource|string)[]).some(r => typeof r === "object" && (r as Resource).url);
+    });
+    useEffect(() => {
+        if (!hasEmptyResources || !goalId) return;
+        const timer = setTimeout(() => enrichResources(), 1500);
+        return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [goalId, hasEmptyResources]);
+
     const saveToAPI = useCallback(async (updated: Milestone[]) => {
         if (!goalId) return;
         setSaving(true);
