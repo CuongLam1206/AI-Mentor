@@ -404,33 +404,52 @@ export default function RoadmapDiagram({ milestones: initialMilestones, goalTitl
     const enrichResources = useCallback(async () => {
         if (!goalId || enriching) return;
         setEnriching(true);
-        setSavedMsg("⏳ Đang gọi AI...");
+        setSavedMsg("⏳ Đang tạo gợi ý...");
         try {
-            const res = await fetch(`${API_URL}/api/goals/${goalId}/enrich-resources`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ user_id: userId }),
-            });
+            // Call generate-plan (proven-working endpoint) to get fresh milestone data with resources
+            const res = await fetch(`${API_URL}/api/goals/${goalId}/generate-plan`, { method: "POST" });
             const data = await res.json();
-            console.log("🔮 Enrich response:", data);
+            console.log("🔮 Generate-plan response:", data);
             if (data.error) {
                 setSavedMsg(`⚠️ ${data.error}`);
-            } else if (data.milestones) {
-                setMilestones(data.milestones);
-                onMilestonesUpdate?.(data.milestones);
-                if ((data.enriched ?? 0) > 0) {
-                    setSavedMsg(`✓ Đã gợi ý ${data.enriched} milestone`);
-                } else {
-                    setSavedMsg("⚠️ Không cần cập nhật (đã có tài liệu)");
-                }
+                setTimeout(() => setSavedMsg(""), 3000);
+                return;
             }
+            const newPlanMilestones: Milestone[] = data.plan?.milestones || [];
+            if (!newPlanMilestones.length) {
+                setSavedMsg("⚠️ AI không trả về tài liệu");
+                setTimeout(() => setSavedMsg(""), 3000);
+                return;
+            }
+            // Merge: preserve existing status/progress/title, take missing resources/topics/activities
+            const merged: Milestone[] = milestones.map((ms, i) => {
+                const fresh = newPlanMilestones[i] || newPlanMilestones[0];
+                const hasResources = ms.resources && ms.resources.length > 0 &&
+                    ms.resources.some(r => typeof r === "object");
+                return {
+                    ...ms,
+                    topics: ms.topics?.length ? ms.topics : (fresh.topics || []),
+                    activities: ms.activities?.length ? ms.activities : (fresh.activities || []),
+                    resources: hasResources ? ms.resources : (fresh.resources || []),
+                };
+            });
+            setMilestones(merged);
+            onMilestonesUpdate?.(merged);
+            // Save merged back to DB
+            await fetch(`${API_URL}/api/goals/${goalId}/milestones`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ milestones: merged }),
+            });
+            setSavedMsg("✓ Đã gợi ý tài liệu thành công!");
             setTimeout(() => setSavedMsg(""), 4000);
         } catch (e) {
             console.error("Enrich error:", e);
-            setSavedMsg("❌ Lỗi kết nối API");
+            setSavedMsg("❌ Lỗi kết nối");
             setTimeout(() => setSavedMsg(""), 3000);
         } finally { setEnriching(false); }
-    }, [goalId, userId, enriching, onMilestonesUpdate]);
+    }, [goalId, userId, enriching, milestones, onMilestonesUpdate]);
+
 
 
     const handleResourceClick = useCallback((r: Resource, msIdx: number, rIdx: number, action?: "toggle") => {
