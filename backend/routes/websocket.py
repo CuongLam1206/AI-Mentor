@@ -125,11 +125,12 @@ async def _build_enhanced_prompt(user_id: str, page_context: dict | None = None)
 - Luôn gọi tên học viên nếu biết.
 - Nếu học viên chưa có hồ sơ, gợi ý vào ⚙️ Cài đặt → Hồ sơ học viên.
 - Khi học viên yêu cầu tạo lộ trình, PHẢI gọi function tao_muc_tieu_va_lo_trinh.
+- Tạo lộ trình cho BẤT KỲ chủ đề nào học viên yêu cầu (lập trình, ngoại ngữ, âm nhạc, thể thao, v.v.) — KHÔNG giới hạn vào danh mục khóa học Learnify.
 - Khi gọi function: mỗi milestone PHẢI điền đầy đủ:
   * topics: ít nhất 3 chủ đề/kỹ năng cụ thể (VD: "Hàm và vòng lặp", "List comprehension")
   * activities: ít nhất 2 hoạt động (VD: "Code 30 phút/ngày", "Xem video tutorial")
-  * resources: MẢNG OBJECT với 2-3 tài liệu thực tế, mỗi tài liệu gồm: name (tên), type (book/website/video/app/course/tool), url (link thực nếu có), description (mô tả 2 câu dạy gì), skills (3 kỹ năng đạt được)
-  * KHÔNG để resources: [] — phải gợi ý tài liệu thực tế phù hợp mục tiêu
+  * resources: MẢNG OBJECT với 2-3 tài liệu thực tế từ INTERNET (sách, website, YouTube, khóa học online), mỗi tài liệu gồm: name (tên), type (book/website/video/app/course/tool), url (link thực nếu có), description (mô tả 2 câu dạy gì), skills (3 kỹ năng đạt được)
+  * KHÔNG để resources: [] — KHÔNG từ chối tạo lộ trình vì "không có trong danh mục Learnify"
 - Sau khi tạo, nhắc học viên vào 🎯 Mục tiêu & Lộ trình để xem tài liệu AI gợi ý.
 - KHI HỌC VIÊN HỎI "hôm nay học gì" hoặc "kế hoạch hôm nay": ĐỌC NGAY phần "Mục tiêu & Tiến độ" và đề xuất tài liệu ⭕ chưa học.
 """
