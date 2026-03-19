@@ -153,44 +153,93 @@ async def cap_nhat_milestones(goal_id: str, body: dict):
 
 @app.post("/api/goals/{goal_id}/generate-plan")
 async def tao_lo_trinh(goal_id: str):
+    import re as _re
     goal = await goal_service.lay_muc_tieu(goal_id)
     if not goal:
         return {"error": "Không tìm thấy mục tiêu"}
-    weak_skills = ", ".join(goal.get("weak_skills", []))
     title = goal.get("title", "")
-    level = goal.get("current_level", "")
+    level = goal.get("current_level", "beginner")
     hours = goal.get("weekly_hours", 10)
     deadline = goal.get("deadline", "6 tháng")
-    prompt = (
-        f"Bạn là chuyên gia giáo dục. Tạo lộ trình học tập cho:\n"
-        f"- Mục tiêu: {title}\n"
-        f"- Trình độ hiện tại: {level}\n"
-        f"- Thời gian: {hours}h/tuần, deadline: {deadline}\n"
-        f"- Kỹ năng yếu: {weak_skills}\n\n"
-        "Tạo 4-6 milestones theo trình tự từ cơ bản đến nâng cao. Mỗi milestone có:\n"
-        "- topics: danh sách chủ đề/kỹ năng\n"
-        "- activities: hoạt động học tập cụ thể\n"
-        "- resources: mảng object, mỗi item gồm: name, type (book|website|video|app|course|tool), "
-        "url (link thực), description (2-3 câu mô tả dạy gì), skills (mảng kỹ năng đạt được)\n\n"
-        "JSON array không markdown:\n"
-        '[{"milestone_id":"ms_01","title":"...","month":1,"target":"...",'
-        '"topics":["..."],"activities":["..."],'
-        '"resources":[{"name":"...","type":"book","url":"...","description":"...","skills":["..."]}],'
-        '"status":"pending","progress_pct":0}]'
-    )
-    try:
-        client = _get_client()
-        if client:
-            resp = client.models.generate_content(model="gemini-2.0-flash", contents=prompt)
-            text = resp.text.strip()
-            if text.startswith("```"): text = "\n".join(text.split("\n")[1:-1])
-            milestones = _json.loads(text)
-        else:
-            milestones = [{"milestone_id": "ms_01", "title": "Nền tảng", "month": 1, "courses": [], "target": "Xây dựng nền tảng", "status": "pending", "progress_pct": 0}]
+
+    client = _get_client()
+    if not client:
+        milestones = [{"milestone_id": "ms_01", "title": "Nền tảng", "month": 1,
+                       "target": "Xây dựng nền tảng", "status": "pending", "progress_pct": 0,
+                       "topics": [], "activities": [], "resources": []}]
         plan = await goal_service.luu_lo_trinh(goal_id, goal["user_id"], milestones)
         return {"plan": plan}
+
+    def extract_json_array(text: str):
+        text = text.strip()
+        match = _re.search(r'\[.*\]', text, _re.DOTALL)
+        if match:
+            return _json.loads(match.group(0))
+        return _json.loads(text)
+
+    # === PASS 1: Generate milestone structure ===
+    prompt1 = (
+        f"Tạo lộ trình học cho: \"{title}\" (trình độ: {level}, {hours}h/tuần, {deadline})\n"
+        "Trả về JSON array 4-6 milestones. Mỗi milestone:\n"
+        "{milestone_id, title, month(số), target, topics[3-5 chủ đề], activities[2-3 hoạt động], "
+        "status:'pending', progress_pct:0}\n"
+        "CHỈ JSON array không markdown không giải thích."
+    )
+    try:
+        resp1 = client.models.generate_content(model="gemini-2.0-flash", contents=prompt1)
+        milestones = extract_json_array(resp1.text)
+        print(f"✅ Pass 1: {len(milestones)} milestones")
     except Exception as e:
-        return {"error": str(e)}
+        print(f"❌ Pass 1 lỗi: {e}")
+        return {"error": f"Không tạo được lộ trình: {e}"}
+
+    # Normalize milestone fields
+    for i, ms in enumerate(milestones):
+        ms.setdefault("milestone_id", f"ms_{i+1:02d}")
+        ms.setdefault("status", "pending")
+        ms.setdefault("progress_pct", 0)
+        ms.setdefault("topics", [])
+        ms.setdefault("activities", [])
+        ms["resources"] = []  # will fill in pass 2
+
+    # === PASS 2: Generate ALL resources in one batch call ===
+    ms_list = "\n".join(
+        f"{i+1}. \"{ms.get('title','')}\" - chủ đề: {', '.join(ms.get('topics', [])[:3])}"
+        for i, ms in enumerate(milestones)
+    )
+    prompt2 = (
+        f"Cho {len(milestones)} milestones học \"{title}\":\n{ms_list}\n\n"
+        "Gợi ý 2-3 tài liệu thực tế cho TỪNG milestone. "
+        "Trả về JSON array với index milestone (0-based):\n"
+        '[{"idx":0,"resources":[{"name":"...","type":"website","url":"https://...","description":"...","skills":["..."]}]}]\n'
+        "CHỈ JSON array, không giải thích."
+    )
+    try:
+        resp2 = client.models.generate_content(model="gemini-2.0-flash", contents=prompt2)
+        resource_data = extract_json_array(resp2.text)
+        print(f"✅ Pass 2: resources for {len(resource_data)} milestones")
+        for item in resource_data:
+            idx = item.get("idx", 0)
+            if 0 <= idx < len(milestones):
+                milestones[idx]["resources"] = [
+                    dict(r, completed=False) for r in item.get("resources", [])
+                ]
+    except Exception as e:
+        print(f"⚠️ Pass 2 lỗi (resources sẽ rỗng): {e}")
+        # Fallback: simple search-based resources
+        for ms in milestones:
+            query = ms.get("title", title)
+            ms["resources"] = [{
+                "name": f"Google: {query}",
+                "type": "website",
+                "url": f"https://www.google.com/search?q={query.replace(' ', '+')}+tutorial",
+                "description": f"Tìm kiếm tài liệu học {query} trên Google.",
+                "skills": ms.get("topics", [])[:3],
+                "completed": False,
+            }]
+
+    plan = await goal_service.luu_lo_trinh(goal_id, goal["user_id"], milestones)
+    return {"plan": plan}
 
 
 @app.post("/api/resource-info")
