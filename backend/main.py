@@ -229,6 +229,53 @@ async def tao_thong_tin_tai_lieu(request: _Request):
     except Exception as e:
         return {"resource": {"name": resource_name, "type": "book", "description": f"({str(e)[:80]})", "skills": []}}
 
+
+@app.post("/api/goals/{goal_id}/enrich-resources")
+async def lam_giau_tai_nguyen(goal_id: str, request: _Request):
+    """Sinh tài liệu AI cho tất cả milestones còn rỗng resources."""
+    body = await request.json()
+    user_id = body.get("user_id", "guest")
+
+    plan = await goal_service.lay_lo_trinh(goal_id)
+    if not plan:
+        return {"error": "Không tìm thấy lộ trình"}
+
+    milestones = plan.get("milestones", [])
+    client = _get_client()
+    if not client:
+        return {"error": "Chưa cấu hình Gemini API"}
+
+    enriched_count = 0
+    for ms in milestones:
+        resources = ms.get("resources", [])
+        needs = not resources or all(isinstance(r, str) for r in resources)
+        if not needs:
+            continue
+        topics_str = ", ".join(ms.get("topics", [])[:3]) or ms.get("title", "")
+        prompt = (
+            f"Gợi ý 3 tài liệu học thực tế cho milestone: \"{ms.get('title','')}\"\n"
+            f"Chủ đề: {topics_str}\n\n"
+            "Trả về JSON array, mỗi item: name, type (book|website|video|app|course|tool), "
+            "url (link thực nếu biết), description (2 câu dạy gì), skills (3 kỹ năng)\n"
+            "Chỉ JSON array:\n"
+            '[{"name":"...","type":"...","url":"...","description":"...","skills":["..."]}]'
+        )
+        try:
+            resp = client.models.generate_content(model="gemini-2.0-flash", contents=prompt)
+            text = resp.text.strip()
+            if text.startswith("```"): text = "\n".join(text.split("\n")[1:-1])
+            rich = _json.loads(text)
+            if isinstance(rich, list) and rich:
+                ms["resources"] = [dict(r, completed=False) for r in rich]
+                enriched_count += 1
+        except Exception as e:
+            print(f"⚠️ Enrich lỗi {ms.get('title')}: {e}")
+
+    if enriched_count > 0:
+        await goal_service.luu_lo_trinh(goal_id, user_id, milestones)
+
+    return {"enriched": enriched_count, "milestones": milestones}
+
 @app.get("/api/notes")
 async def lay_ghi_chu(user_id: str = "guest"):
     try:

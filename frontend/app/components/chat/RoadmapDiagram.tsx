@@ -376,6 +376,7 @@ export default function RoadmapDiagram({ milestones: initialMilestones, goalTitl
     const [selectedResource, setSelectedResource] = useState<{ r: Resource; msIdx: number; rIdx: number } | null>(null);
     const [saving, setSaving] = useState(false);
     const [savedMsg, setSavedMsg] = useState("");
+    const [enriching, setEnriching] = useState(false);
 
     // Sync when parent gives new milestones (e.g. after AI generation)
     useEffect(() => { setMilestones(initialMilestones); }, [initialMilestones]);
@@ -399,6 +400,25 @@ export default function RoadmapDiagram({ milestones: initialMilestones, goalTitl
         saveToAPI(updated);
         onMilestonesUpdate?.(updated);
     }, [saveToAPI, onMilestonesUpdate]);
+
+    const enrichResources = useCallback(async () => {
+        if (!goalId || enriching) return;
+        setEnriching(true);
+        try {
+            const res = await fetch(`${API_URL}/api/goals/${goalId}/enrich-resources`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ user_id: userId }),
+            });
+            const data = await res.json();
+            if (data.milestones) {
+                setMilestones(data.milestones);
+                onMilestonesUpdate?.(data.milestones);
+                setSavedMsg(`✓ Đã gợi ý ${data.enriched} milestone`);
+                setTimeout(() => setSavedMsg(""), 3000);
+            }
+        } catch { /* silent */ } finally { setEnriching(false); }
+    }, [goalId, userId, enriching, onMilestonesUpdate]);
 
     const handleResourceClick = useCallback((r: Resource, msIdx: number, rIdx: number, action?: "toggle") => {
         if (action === "toggle") {
@@ -458,7 +478,17 @@ export default function RoadmapDiagram({ milestones: initialMilestones, goalTitl
                         <div style={{ fontWeight: 700, fontSize: 14 }}>{goalTitle}</div>
                         <div style={{ fontSize: 12, opacity: 0.8, marginTop: 2 }}>{done}/{milestones.length} milestones · {totalPct}% hoàn thành</div>
                     </div>
-                    {(saving || savedMsg) && <div style={{ fontSize: 11, background: "rgba(255,255,255,0.2)", borderRadius: 6, padding: "2px 8px" }}>{saving ? "Đang lưu..." : savedMsg}</div>}
+                    {/* Enrich button — show when any milestone has empty resources */}
+                    {milestones.some(m => !(m.resources?.length) || (m.resources as (Resource|string)[]).every(r => typeof r === "string")) && goalId && (
+                        <button
+                            onClick={enrichResources}
+                            disabled={enriching}
+                            style={{ background: enriching ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.22)", border: "1.5px solid rgba(255,255,255,0.4)", color: "#fff", borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: enriching ? "default" : "pointer", flexShrink: 0, display: "flex", alignItems: "center", gap: 5 }}
+                        >
+                            {enriching ? "⏳ Đang tìm..." : "🔮 AI gợi ý tài liệu"}
+                        </button>
+                    )}
+                    {(saving || savedMsg) && <div style={{ fontSize: 11, background: "rgba(255,255,255,0.2)", borderRadius: 6, padding: "2px 8px", flexShrink: 0 }}>{saving ? "Đang lưu..." : savedMsg}</div>}
                 </div>
 
                 {sorted.map((ms, idx) => (
