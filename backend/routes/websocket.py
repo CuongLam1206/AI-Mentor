@@ -216,14 +216,19 @@ async def tao_loi_chao_proactive(user_id: str, page_context: dict | None = None)
     enhanced_prompt = await _build_enhanced_prompt(user_id, page_context)
     page_ctx_text = _build_page_context_text(page_context)
 
+    from datetime import date
+    today_str = date.today().strftime("%d/%m/%Y")
     greeting_instruction = (
-        "Hãy chào học viên một cách thân thiện, ngắn gọn (2-3 câu). "
-        "Dựa vào tiến độ học tập, đề xuất 1 hành động cụ thể cho hôm nay "
-        "(ví dụ: tiếp tục milestone đang dở, ôn khóa có % thấp...). "
-        "Không hỏi lại, không giải thích dài. Kết bằng emoji phù hợp."
+        f"Hôm nay là {today_str}. Hãy chào học viên ngắn gọn, thân thiện.\n"
+        "PHÂN TÍCH tiến độ trong context và làm theo thứ tự ưu tiên:\n"
+        "1. Nếu có milestone 'Đang học': liệt kê TÊN tài liệu (⭕) chưa học, gợi ý bắt đầu ngay 1 tài liệu cụ thể.\n"
+        "2. So sánh deadline với ngày hôm nay: nếu còn < 30 ngày → cảnh báo gấp, nếu milestone đang tụt tiến độ → nhắc 'Bạn đang chậm hơn kế hoạch'.\n"
+        "3. Nếu mọi milestone đang đúng tiến độ → khen ngợi và đề xuất milestone tiếp theo.\n"
+        "4. Nếu chưa có mục tiêu → hỏi học viên muốn học gì để tạo lộ trình.\n"
+        "Ngắn gọn: 2-4 câu, 1 hành động cụ thể, kết bằng emoji."
     )
     if page_ctx_text:
-        greeting_instruction += f"\nNgữ cảnh hiện tại: {page_ctx_text}"
+        greeting_instruction += f"\nNgữ cảnh trang hiện tại: {page_ctx_text}"
 
     try:
         response = gemini_client.models.generate_content(

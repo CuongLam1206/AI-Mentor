@@ -193,6 +193,42 @@ async def tao_lo_trinh(goal_id: str):
         return {"error": str(e)}
 
 
+@app.post("/api/resource-info")
+async def tao_thong_tin_tai_lieu(request: _Request):
+    """Dùng Gemini để sinh thông tin chi tiết cho 1 tài liệu học viên tự nhập."""
+    body = await request.json()
+    resource_name = body.get("resource_name", "").strip()
+    milestone_topic = body.get("milestone_topic", "")
+
+    if not resource_name:
+        return {"error": "Thiếu resource_name"}
+
+    client = _get_client()
+    if not client:
+        return {"resource": {"name": resource_name, "type": "book", "description": "Chưa thể tải mô tả.", "skills": []}}
+
+    prompt = (
+        f"Tôi muốn học từ tài liệu sau: \"{resource_name}\".\n"
+        f"Chủ đề milestone: {milestone_topic or 'học tập nói chung'}.\n\n"
+        "Hãy trả về JSON object MÔ TẢ tài liệu này:\n"
+        "- name: tên đầy đủ\n"
+        "- type: book | website | video | app | course | tool\n"
+        "- url: link thực (nếu biết, không bịa)\n"
+        "- description: 2-3 câu mô tả tài liệu dạy gì, phù hợp người học như thế nào\n"
+        "- skills: mảng 3-5 kỹ năng cụ thể học được\n\n"
+        "Chỉ JSON, không markdown:\n"
+        '{"name":"...","type":"...","url":"...","description":"...","skills":["..."]}'
+    )
+    try:
+        resp = client.models.generate_content(model="gemini-2.0-flash", contents=prompt)
+        text = resp.text.strip()
+        if text.startswith("```"): text = "\n".join(text.split("\n")[1:-1])
+        resource = _json.loads(text)
+        resource.setdefault("name", resource_name)
+        return {"resource": resource}
+    except Exception as e:
+        return {"resource": {"name": resource_name, "type": "book", "description": f"({str(e)[:80]})", "skills": []}}
+
 @app.get("/api/notes")
 async def lay_ghi_chu(user_id: str = "guest"):
     try:
