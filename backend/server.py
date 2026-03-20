@@ -193,9 +193,9 @@ Hướng dẫn khai thác:
 - Luôn gọi tên học viên nếu biết.
 - Trả lời dựa trên hồ sơ, mục tiêu, và tiến độ hiện tại.
 - Nếu học viên chưa có hồ sơ, gợi ý họ vào ⚙️ Cài đặt → Hồ sơ học viên.
-- Khi đề xuất lộ trình, BẮT BUỘC chọn từ danh mục khóa học trên.
+- Tạo lộ trình cho BẤT KỲ chủ đề nào học viên yêu cầu (lập trình, ngoại ngữ, âm nhạc, thể thao, v.v.) — KHÔNG giới hạn vào danh mục Learnify. Resources từ Internet (sách, website, YouTube, khóa học online).
 - Nếu học viên chưa có mục tiêu, chủ động khảo sát: mục tiêu gì, trình độ, thời gian, kỹ năng yếu.
-- Khi học viên yêu cầu tạo lộ trình, PHẢI gọi function tao_muc_tieu_va_lo_trinh để lưu vào hệ thống.
+- Khi học viên yêu cầu tạo lộ trình, PHẢI gọi function tao_muc_tieu_va_lo_trinh để lưu vào hệ thống. KHÔNG từ chối vì "không có trong danh mục Learnify".
 - Sau khi tạo lộ trình, nhắc học viên vào 🎯 Mục tiêu & Lộ trình trong Cài đặt để xem chi tiết.
 """
 
@@ -1646,6 +1646,89 @@ async def get_streak(user_id: str = "default"):
         "last_active": today_str,
         "weekly_sessions": weekly_sessions,
     }
+
+
+# ========== Quiz Result & History ==========
+
+@app.post("/api/quiz/result")
+async def luu_ket_qua_quiz(body: dict):
+    """Save quiz result from QuizModal + mark streak active."""
+    from datetime import datetime, timezone
+    db = chat_service._db
+    if db is None:
+        return {"success": False}
+    user_id = body.get("user_id", "default")
+    score = body.get("score", 0)
+    total = body.get("total", 1)
+    percentage = round(score / total * 100) if total else 0
+    result = {
+        "user_id": user_id,
+        "goal_title": body.get("goal_title", ""),
+        "course_title": body.get("topic", body.get("goal_title", "")),
+        "score": score,
+        "total": total,
+        "percentage": percentage,
+        "date": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.quiz_results.insert_one(result)
+    # Mark streak active for today
+    today_str = datetime.now(timezone.utc).date().isoformat()
+    await db.streak_sessions.update_one(
+        {"user_id": user_id, "date": today_str},
+        {"$set": {"user_id": user_id, "date": today_str, "active": True}},
+        upsert=True,
+    )
+    return {"success": True, "percentage": percentage}
+
+
+@app.get("/api/quiz/history")
+async def lay_lich_su_quiz(user_id: str = "default"):
+    """Quiz history for GoalsScreen: daily 7 days, recent, by_topic."""
+    from datetime import datetime, timedelta, timezone
+    db = chat_service._db
+    if db is None:
+        return {"daily": [{"date": "", "avg_pct": 0, "count": 0}]*7, "recent": [], "by_topic": []}
+    today = datetime.now(timezone.utc).date()
+    seven_days = [(today - timedelta(days=6-i)).isoformat() for i in range(7)]
+    cutoff = (today - timedelta(days=6)).isoformat()
+    results = await db.quiz_results.find(
+        {"user_id": user_id, "date": {"$gte": cutoff}}
+    ).sort("date", -1).to_list(200)
+    # Daily aggregation
+    daily_map: dict = {d: {"count": 0, "total_pct": 0} for d in seven_days}
+    for r in results:
+        day = r.get("date", "")[:10]
+        if day in daily_map:
+            pct = r.get("percentage", round(r.get("score", 0) / max(r.get("total", 1), 1) * 100))
+            daily_map[day]["count"] += 1
+            daily_map[day]["total_pct"] += pct
+    daily = []
+    for d in seven_days:
+        cnt = daily_map[d]["count"]
+        avg = round(daily_map[d]["total_pct"] / cnt) if cnt else 0
+        daily.append({"date": d, "avg_pct": avg, "count": cnt})
+    # Recent
+    recent_docs = await db.quiz_results.find({"user_id": user_id}).sort("date", -1).to_list(10)
+    recent = []
+    for r in recent_docs:
+        r.pop("_id", None)
+        r["percentage"] = r.get("percentage", round(r.get("score", 0) / max(r.get("total", 1), 1) * 100))
+        recent.append(r)
+    # By topic
+    topic_map: dict = {}
+    all_res = await db.quiz_results.find({"user_id": user_id}).to_list(500)
+    for r in all_res:
+        key = r.get("course_title") or r.get("goal_title") or "Chung"
+        if key not in topic_map:
+            topic_map[key] = {"total_pct": 0, "count": 0}
+        pct = r.get("percentage", round(r.get("score", 0) / max(r.get("total", 1), 1) * 100))
+        topic_map[key]["total_pct"] += pct
+        topic_map[key]["count"] += 1
+    by_topic = [
+        {"key": k, "label": k, "avg_pct": round(v["total_pct"] / v["count"]), "attempts": v["count"]}
+        for k, v in topic_map.items()
+    ]
+    return {"daily": daily, "recent": recent, "by_topic": by_topic}
 
 
 # ===== Chạy server =====
