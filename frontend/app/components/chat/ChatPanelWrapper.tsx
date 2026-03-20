@@ -2,14 +2,19 @@
 
 /**
  * Learnify Tutor AI – Split Screen Wrapper
- * Kiểu VS Code Copilot: chia màn hình 2 phần, kéo resize được.
+ *
+ * Auth flow (server-side verification):
+ *   URL params: ?id=B&signature=D
+ *   Frontend gửi {id, signature} lên /api/auth/verify (Next.js API route)
+ *   Server verify D' = B + secret === D → trả về userId = decode(B)
+ *   Key C (shared secret) KHÔNG bao giờ xuất hiện trong browser.
  */
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import ChatPanel from "./ChatPanel";
 
 const MIN_CHAT_WIDTH = 380;
-const MAX_CHAT_RATIO = 0.75; // Max 75% màn hình
+const MAX_CHAT_RATIO = 0.75;
 const DEFAULT_CHAT_WIDTH = 520;
 
 export default function ChatPanelWrapper() {
@@ -19,12 +24,36 @@ export default function ChatPanelWrapper() {
   const startX = useRef(0);
   const startWidth = useRef(0);
 
-  // Read userId from URL params (?user=... từ Learnify embed)
-  const [userId, setUserId] = useState("default");
+  const [userId, setUserId] = useState<string | null>(null); // null = chưa verify
+  const [authError, setAuthError] = useState(false);
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const u = params.get("user");
-    if (u) setUserId(u);
+    const id = params.get("id");
+    const signature = params.get("signature");
+
+    if (id && signature) {
+      // Gửi lên server để verify (key C không lộ ra client)
+      fetch("/api/auth/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, signature }),
+      })
+        .then(async (res) => {
+          if (res.ok) {
+            const { userId: verifiedUserId } = await res.json();
+            setUserId(verifiedUserId);
+          } else {
+            setAuthError(true);
+          }
+        })
+        .catch(() => setAuthError(true));
+      return;
+    }
+
+    // Backward-compat: ?user= cũ (không cần signature)
+    const legacyUser = params.get("user");
+    setUserId(legacyUser || "default");
   }, []);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -61,6 +90,12 @@ export default function ChatPanelWrapper() {
       window.removeEventListener("mouseup", handleMouseUp);
     };
   }, []);
+
+  // Reject nếu sai signature
+  if (authError) return null;
+
+  // Chờ verify xong mới render
+  if (userId === null) return null;
 
   return (
     <>
