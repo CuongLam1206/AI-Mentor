@@ -522,7 +522,8 @@ export default function ChatPanel({ onDong, fullScreen, onToggleFullScreen, user
                                 )}
                             </button>
                         )}
-                        <button className="topbar-btn--close" onClick={onDong} title="Đóng">✕</button>
+
+
                     </div>
                 </div>
 
