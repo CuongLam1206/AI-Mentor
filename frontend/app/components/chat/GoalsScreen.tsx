@@ -71,15 +71,15 @@ function ProgressRing({ pct }: { pct: number }) {
 
 const API_URL_GOALS = process.env.NEXT_PUBLIC_API_URL || "https://ai-mentor-iwkf.onrender.com";
 
-function ProgressDashboard() {
+function ProgressDashboard({ userId = "default" }: { userId?: string }) {
     const [streakData, setStreakData] = useState<{ streak: number; last_active: string | null; weekly_sessions: number[] } | null>(null);
 
     useEffect(() => {
-        fetch(`${API_URL_GOALS}/api/streak?user_id=default`)
+        fetch(`${API_URL_GOALS}/api/streak?user_id=${userId}`)
             .then(r => r.json())
             .then(d => setStreakData(d))
             .catch(() => {});
-    }, []);
+    }, [userId]);
 
     // Build 7-day labels (Mon → Sun or today-6 → today)
     const today = new Date();
@@ -227,7 +227,7 @@ function QuizScoreChart({ data }: { data: QuizHistoryData }) {
 }
 
 // Collapsible wrapper for ProgressDashboard
-function ProgressDashboardCollapsible() {
+function ProgressDashboardCollapsible({ userId = "default" }: { userId?: string }) {
     const [open, setOpen] = useState(true);
     return (
         <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #e2e8f0", overflow: "hidden", marginBottom: 8 }}>
@@ -238,7 +238,7 @@ function ProgressDashboardCollapsible() {
                 <span style={{ fontWeight: 600, fontSize: 13, color: "#1e293b" }}>📈 Tiến độ 7 ngày gần đây</span>
                 <span style={{ marginLeft: "auto", fontSize: 12, color: "#94a3b8" }}>{open ? "▲" : "▼"}</span>
             </button>
-            {open && <ProgressDashboard />}
+            {open && <ProgressDashboard userId={userId} />}
         </div>
     );
 }
@@ -528,7 +528,7 @@ function GoalListView({ goals, plans, onSelectGoal, onCreateGoal, onBack, loadin
 
             <div className="screen-body">
                 {/* ===== Charts + Analytics — each individually collapsible ===== */}
-                <ProgressDashboardCollapsible />
+                <ProgressDashboardCollapsible userId={userId} />
                 {quizHistory && <WeakTopicBanner data={quizHistory} />}
                 {quizHistory && <QuizScoreChartCollapsible data={quizHistory} />}
                 {quizHistory && <QuizHistory data={quizHistory} />}
@@ -1156,7 +1156,7 @@ export default function GoalsScreen({ onBack, userId = "default" }: Props) {
             const res = await fetch(`${API_URL}/api/goals`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ ...data, user_id: "default" }),
+                body: JSON.stringify({ ...data, user_id: userId }),
             });
             const d = await res.json();
             setShowCreate(false);

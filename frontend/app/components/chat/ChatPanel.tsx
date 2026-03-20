@@ -549,7 +549,7 @@ export default function ChatPanel({ onDong, fullScreen, onToggleFullScreen, user
                 {activeScreen === "profile" ? (
                     <ProfileScreen onBack={() => setActiveScreen("chat")} />
                 ) : activeScreen === "goals" ? (
-                    <GoalsScreen onBack={() => setActiveScreen("chat")} />
+                    <GoalsScreen onBack={() => setActiveScreen("chat")} userId={userId} />
                 ) : (
                 <>
                     {/* Phase 2: Nudge Banner */}

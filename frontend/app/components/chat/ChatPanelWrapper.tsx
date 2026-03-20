@@ -19,6 +19,14 @@ export default function ChatPanelWrapper() {
   const startX = useRef(0);
   const startWidth = useRef(0);
 
+  // Read userId from URL params (?user=... từ Learnify embed)
+  const [userId, setUserId] = useState("default");
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const u = params.get("user");
+    if (u) setUserId(u);
+  }, []);
+
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     isDragging.current = true;
     startX.current = e.clientX;
@@ -86,7 +94,7 @@ export default function ChatPanelWrapper() {
 
           {/* Chat Content */}
           <div className="chat-split-content">
-            <ChatPanel onDong={() => setDaMo(false)} />
+            <ChatPanel onDong={() => setDaMo(false)} userId={userId} />
           </div>
         </div>
       )}
