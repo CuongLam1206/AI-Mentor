@@ -381,17 +381,8 @@ export default function RoadmapDiagram({ milestones: initialMilestones, goalTitl
     // Sync when parent gives new milestones (e.g. after AI generation)
     useEffect(() => { setMilestones(initialMilestones); }, [initialMilestones]);
 
-    // Auto-enrich: if any milestone has no URL resources, trigger enrichResources after short delay
-    const hasEmptyResources = initialMilestones.some(m => {
-        const res = m.resources || [];
-        return !res.length || !(res as (Resource|string)[]).some(r => typeof r === "object" && (r as Resource).url);
-    });
-    useEffect(() => {
-        if (!hasEmptyResources || !goalId) return;
-        const timer = setTimeout(() => enrichResources(), 1500);
-        return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [goalId, hasEmptyResources]);
+
+    // NOTE: Auto-enrich removed — chỉ trigger qua nút "🔮 AI gợi ý tài liệu" để tránh overwrite milestones khi đổi tab.
 
     const saveToAPI = useCallback(async (updated: Milestone[]) => {
         if (!goalId) return;
@@ -418,24 +409,13 @@ export default function RoadmapDiagram({ milestones: initialMilestones, goalTitl
         setEnriching(true);
         setSavedMsg("⏳ Đang tạo gợi ý...");
         try {
-            // Try generate-plan to get fresh milestones with AI resources
-            let workingMs: Milestone[] = [...milestones];
-            try {
-                const res = await fetch(`${API_URL}/api/goals/${goalId}/generate-plan`, { method: "POST" });
-                const data = await res.json();
-                console.log("🔮 Generate-plan:", JSON.stringify(data).slice(0, 300));
-                if (!data.error && data.plan?.milestones?.length) {
-                    workingMs = data.plan.milestones;
-                }
-            } catch { /* use local milestones */ }
-
-            // CLIENT-SIDE FALLBACK: guaranteed resources for any milestone still empty
-            const withResources: Milestone[] = workingMs.map(ms => {
+            // Chỉ fill resources vào milestones HIỆN CÓ — KHÔNG gọi generate-plan
+            // để tránh overwrite số lượng / tháng milestones
+            const withResources: Milestone[] = milestones.map(ms => {
                 const existing = (ms.resources || []).filter(r =>
                     typeof r === "object" && (r as Resource).name
                 );
                 if (existing.length > 0) return { ...ms, resources: existing };
-                // Build search URL from title/topics
                 const query = encodeURIComponent((ms.title || ms.target || "").trim());
                 const topics = (ms.topics || []).slice(0, 3);
                 return {
@@ -445,7 +425,7 @@ export default function RoadmapDiagram({ milestones: initialMilestones, goalTitl
                             name: `🔍 Tìm kiếm: ${ms.title || ms.target}`,
                             type: "website" as const,
                             url: `https://www.google.com/search?q=${query}+tutorial+course`,
-                            description: `Tìm kiếm tài liệu và khóa học về chủ đề này trên Google.`,
+                            description: `Tìm tài liệu và khóa học về chủ đề này trên Google.`,
                             skills: topics.length ? topics : ["Kiến thức cơ bản", "Kỹ năng thực hành"],
                             completed: false,
                         },
@@ -462,7 +442,6 @@ export default function RoadmapDiagram({ milestones: initialMilestones, goalTitl
             });
 
             setMilestones(withResources);
-            // Save to DB with resources
             await fetch(`${API_URL}/api/goals/${goalId}/milestones`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
