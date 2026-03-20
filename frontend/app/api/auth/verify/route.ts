@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import crypto from "crypto";
 
 // Force Node.js runtime — Edge runtime không có Buffer
 export const runtime = "nodejs";
@@ -17,8 +18,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Server misconfigured" }, { status: 500 });
   }
 
-  // Verify: D' = B + C
-  const expectedSignature = id + secret;
+  // Verify: D' = SHA256(B + C)
+  const rawSignature = id + secret;
+  const expectedSignature = crypto.createHash("sha256").update(rawSignature).digest("hex");
+
   if (signature !== expectedSignature) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
