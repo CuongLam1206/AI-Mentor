@@ -416,23 +416,24 @@ export default function RoadmapDiagram({ milestones: initialMilestones, goalTitl
                     typeof r === "object" && (r as Resource).name
                 );
                 if (existing.length > 0) return { ...ms, resources: existing };
-                const query = encodeURIComponent((ms.title || ms.target || "").trim());
+                const query = encodeURIComponent((ms.target || ms.title || "").trim());
                 const topics = (ms.topics || []).slice(0, 3);
+                const searchLabel = ms.title || ms.target;
                 return {
                     ...ms,
                     resources: [
                         {
-                            name: `🔍 Tìm kiếm: ${ms.title || ms.target}`,
+                            name: `🔍 Tìm kiếm: ${searchLabel}`,
                             type: "website" as const,
-                            url: `https://www.google.com/search?q=${query}+tutorial+course`,
+                            url: `https://www.google.com/search?q=${query}`,
                             description: `Tìm tài liệu và khóa học về chủ đề này trên Google.`,
                             skills: topics.length ? topics : ["Kiến thức cơ bản", "Kỹ năng thực hành"],
                             completed: false,
                         },
                         {
-                            name: `📺 YouTube: ${ms.title || ms.target}`,
+                            name: `📺 YouTube: ${searchLabel}`,
                             type: "video" as const,
-                            url: `https://www.youtube.com/results?search_query=${query}+tutorial`,
+                            url: `https://www.youtube.com/results?search_query=${query}`,
                             description: `Xem hướng dẫn video từ các kênh giáo dục uy tín trên YouTube.`,
                             skills: topics.length ? topics.slice(1) : ["Học qua video", "Thực hành theo"],
                             completed: false,
